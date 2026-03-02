@@ -2714,7 +2714,8 @@ body.kid-mode .kid-mode-banner { display: block; }
     <div style="margin-bottom:1.2rem">
       <label style="display:block;color:var(--parchment);font-size:0.9rem;margin-bottom:0.4rem">
         🎧 ElevenLabs API Key
-        <span style="font-size:0.72rem;color:#7a6040;display:block;margin-top:0.1rem">For audio narration — free at elevenlabs.io</span>
+        <span style="font-size:0.72rem;color:var(--forest);display:block;margin-top:0.1rem">✅ Audio is handled by the server — subscribers don't need to fill this in</span>
+        <span style="font-size:0.7rem;color:#5a4030;display:block;margin-top:0.1rem">Only needed if you're running your own instance</span>
       </label>
       <input
         type="password"
@@ -3732,13 +3733,8 @@ function getStoryTextForNarration() {
 async function startNarration() {
   if (narrationLoading) return;
 
-  // Get API key from localStorage (set in ⚙️ Settings)
+  // Personal key from Settings (optional — only needed if server key not configured)
   const apiKey = localStorage.getItem('ao_el_key') || '';
-  if (!apiKey) {
-    showToast('🎧 Tap ⚙️ Settings and paste your ElevenLabs key to enable audio', 5000);
-    updatePlayBtn('▶ Play');
-    return;
-  }
 
   const text = getStoryTextForNarration();
   if (!text) {
@@ -3752,33 +3748,41 @@ async function startNarration() {
   try {
     if (audioPlayer) { audioPlayer.pause(); audioPlayer = null; }
 
-    // Call ElevenLabs directly — they support browser CORS
-    const res = await fetch(
-      `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`,
-      {
-        method: 'POST',
-        headers: {
-          'xi-api-key': apiKey,
-          'Content-Type': 'application/json',
-          'Accept': 'audio/mpeg',
-        },
-        body: JSON.stringify({
-          text: text.slice(0, 2500),
-          model_id: 'eleven_turbo_v2_5',
-          voice_settings: {
-            stability: 0.50,
-            similarity_boost: 0.80,
-            style: 0.30,
-            use_speaker_boost: true,
-          },
-        }),
+    // Try server-side proxy first (key stored in Vercel env var — invisible to users)
+    // Falls back to user-pasted key in Settings if proxy returns NO_KEY
+    let res = await fetch('/api/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: text.slice(0, 2500), voiceId: ELEVENLABS_VOICE_ID }),
+    });
+
+    // If server has no key configured, try user's personal key from Settings
+    if (res.status === 500) {
+      const errJson = await res.json().catch(() => ({}));
+      if (errJson.error === 'NO_KEY') {
+        if (!apiKey) {
+          throw new Error('🔑 No API key configured. Tap ⚙️ Settings to add your ElevenLabs key.');
+        }
+        // Fall back to direct call with user key
+        res = await fetch(
+          `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`,
+          {
+            method: 'POST',
+            headers: { 'xi-api-key': apiKey, 'Content-Type': 'application/json', 'Accept': 'audio/mpeg' },
+            body: JSON.stringify({
+              text: text.slice(0, 2500),
+              model_id: 'eleven_turbo_v2_5',
+              voice_settings: { stability: 0.50, similarity_boost: 0.80, style: 0.30, use_speaker_boost: true },
+            }),
+          }
+        );
       }
-    );
+    }
 
     if (!res.ok) {
       if (res.status === 401) throw new Error('❌ Invalid API key — check it in ⚙️ Settings');
       if (res.status === 429) throw new Error('Monthly free quota reached — upgrade at elevenlabs.io');
-      throw new Error(`ElevenLabs error ${res.status} — check your key in ⚙️ Settings`);
+      throw new Error(`Audio error ${res.status} — please try again`);
     }
 
     const arrayBuffer = await res.arrayBuffer();
