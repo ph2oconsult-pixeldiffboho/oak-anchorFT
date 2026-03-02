@@ -3759,57 +3759,60 @@ async function startNarration() {
   try {
     if (audioPlayer) { audioPlayer.pause(); audioPlayer = null; }
 
-    // ── STEP 2: Fetch audio from server proxy ──────────────────────
+    // ── STEP 2: Fetch audio ────────────────────────────────────────
+    // Try server proxy first. If it fails for ANY reason, auto-fall
+    // back to direct ElevenLabs using key from Settings.
     let audioData = null;
+    let debugInfo = '';
 
+    // --- Attempt 1: Server proxy (key stored in Vercel env var) ---
     try {
-      const res = await fetch('/api/tts', {
+      const proxyRes = await fetch('/api/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: text.slice(0, 2500), voiceId: ELEVENLABS_VOICE_ID }),
       });
-
-      if (res.ok) {
-        audioData = await res.arrayBuffer();
-      } else if (res.status === 500) {
-        // Server key not set — try personal key from Settings
-        const errJson = await res.json().catch(() => ({}));
-        if (errJson.error === 'NO_KEY') {
-          const apiKey = localStorage.getItem('ao_el_key') || '';
-          if (!apiKey) {
-            throw new Error('NOKEY');
-          }
-          const r2 = await fetch(
-            `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`,
-            {
-              method: 'POST',
-              headers: { 'xi-api-key': apiKey, 'Content-Type': 'application/json', 'Accept': 'audio/mpeg' },
-              body: JSON.stringify({
-                text: text.slice(0, 2500),
-                model_id: 'eleven_turbo_v2_5',
-                voice_settings: { stability: 0.50, similarity_boost: 0.80, style: 0.30, use_speaker_boost: true },
-              }),
-            }
-          );
-          if (!r2.ok) throw new Error(`ElevenLabs error ${r2.status}`);
-          audioData = await r2.arrayBuffer();
-        } else {
-          throw new Error(`Server error — please try again`);
-        }
-      } else if (res.status === 401) {
-        throw new Error('Invalid API key — check Vercel environment variables');
-      } else if (res.status === 429) {
-        throw new Error('Monthly audio quota reached — upgrade ElevenLabs plan');
+      debugInfo = `proxy:${proxyRes.status}`;
+      if (proxyRes.ok) {
+        audioData = await proxyRes.arrayBuffer();
       } else {
-        throw new Error(`Audio error ${res.status} — please try again`);
+        const errJson = await proxyRes.json().catch(() => ({}));
+        debugInfo += `:${errJson.error || 'err'}`;
+        // fall through to attempt 2
       }
-    } catch(e) {
-      if (e.message === 'NOKEY') {
-        throw new Error('Audio not configured. Please contact support.');
-      }
-      throw e;
+    } catch(proxyErr) {
+      debugInfo = `proxy:FAIL(${String(proxyErr.message).slice(0,40)})`;
+      // Network error / 404 / timeout — fall through to attempt 2
     }
 
+    // --- Attempt 2: Direct call with user key from Settings ---
+    if (!audioData) {
+      const userKey = localStorage.getItem('ao_el_key') || '';
+      debugInfo += ` direct:${userKey ? 'haskey' : 'nokey'}`;
+      if (!userKey) {
+        console.error('Audio debug:', debugInfo);
+        throw new Error('SETUP_NEEDED');
+      }
+      const directRes = await fetch(
+        `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`,
+        {
+          method: 'POST',
+          headers: { 'xi-api-key': userKey, 'Content-Type': 'application/json', 'Accept': 'audio/mpeg' },
+          body: JSON.stringify({
+            text: text.slice(0, 2500),
+            model_id: 'eleven_turbo_v2_5',
+            voice_settings: { stability: 0.50, similarity_boost: 0.80, style: 0.30, use_speaker_boost: true },
+          }),
+        }
+      );
+      debugInfo += ` r2:${directRes.status}`;
+      if (directRes.status === 401) throw new Error('Invalid ElevenLabs key in Settings');
+      if (directRes.status === 429) throw new Error('Monthly audio quota reached');
+      if (!directRes.ok) throw new Error(`ElevenLabs error ${directRes.status}`);
+      audioData = await directRes.arrayBuffer();
+    }
+
+    console.log('Audio debug:', debugInfo)
     if (!audioData || audioData.byteLength < 100) {
       throw new Error('Empty audio received — please try again');
     }
@@ -3896,7 +3899,9 @@ async function startNarration() {
     narrationLoading = false;
     updatePlayBtn('▶ Play');
     console.error('TTS:', e.message);
-    const msg = e.message || 'Audio failed — please try again';
+    let msg = e.message || 'Audio failed — please try again';
+    if (msg === 'SETUP_NEEDED') msg = '🎧 Audio unavailable — please contact support';
+    console.error('Audio error:', msg);
     showToast(msg, 5000);
   }
 }
