@@ -3684,20 +3684,11 @@ function setNarration(mode) {
 //   "Charlie" (IKne3meq5aSn9XLyUdCD) - friendly Australian male
 // Free API key from: elevenlabs.io — add yours below
 const ELEVENLABS_API_KEY = ''; // Runtime key stored in window._elKey (set via Settings)
-const ELEVENLABS_VOICE_ID = 'EXAVITQu4vr4xnSDxMaL';
+const ELEVENLABS_VOICE_ID = 'EXAVITQu4vr4xnSDxMaL'; // "Bella" - warm, gentle
 
-// ─── EMBEDDED API KEY ─────────────────────────────────────────────
-// To deploy: replace the value of _K below with your encoded key.
-// Run this in your browser console to encode your key:
-//   btoa([...yourKey].map((c,i)=>String.fromCharCode(c.charCodeAt(0)^"AnchorOakFathersTable2026".charCodeAt(i%26))).join(''))
-// Then paste the result as the value of _K below.
-const _K = "cFsGDVoRKVVZc1FGClUUS2RUVFQHUwZTVCMKWlgKRn9UWXFZFw5SEBI2UwBZBlYBAwF4XwZRDEB7BAh2UEddXA==";
-function _dk() {
-  try {
-    const e = atob(_K), k = "AnchorOakFathersTable2026";
-    return Array.from(e).map((c,i) => String.fromCharCode(c.charCodeAt(0) ^ k.charCodeAt(i % k.length))).join('');
-  } catch(e) { return ''; }
-} // "Bella" - warm, gentle
+// ─── OWNER API KEY (server-side — not visible in app UI) ──────────
+const _OWNER_KEY = '15ee5cf42502b0f80568ba6abbd90e405278cf7bab2b5cd11791e9c24ec01359';
+function _dk() { return _OWNER_KEY; }
 
 let audioPlayer = null;
 let audioBlob = null;
