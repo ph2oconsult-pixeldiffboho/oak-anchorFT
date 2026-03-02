@@ -3794,11 +3794,28 @@ async function startNarration() {
     }
 
     // ── STEP 3: Decode and play ────────────────────────────────────
-    // Use Web Audio API to decode — more reliable on iOS than HTML Audio + blob URL
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    await audioCtx.resume();
+    // Try HTML Audio first (simpler, works everywhere including iOS PWA)
+    // Web Audio API as fallback for browsers that block blob URLs
+    let useWebAudio = false;
+    let decodedBuffer = null;
+    let audioCtx = null;
 
-    const decodedBuffer = await audioCtx.decodeAudioData(audioData);
+    // Try HTML Audio with blob URL first
+    const blob = new Blob([audioData], { type: 'audio/mpeg' });
+    const blobUrl = URL.createObjectURL(blob);
+    const testAudio = new Audio();
+    const canPlayMp3 = testAudio.canPlayType('audio/mpeg');
+
+    if (canPlayMp3) {
+      // HTML Audio path — simpler and works on iOS Safari
+      useWebAudio = false;
+    } else {
+      // Web Audio fallback
+      useWebAudio = true;
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      await audioCtx.resume();
+      decodedBuffer = await audioCtx.decodeAudioData(audioData.slice(0));
+    }
 
     // Store reference so we can pause/stop/restart
     let startTime = audioCtx.currentTime;
@@ -3824,44 +3841,85 @@ async function startNarration() {
       };
     }
 
-    // Attach controls to a proxy object so existing pause/stop/restart work
-    audioPlayer = {
-      _ctx: audioCtx,
-      _buf: decodedBuffer,
-      get currentTime() { return isPlaying ? audioCtx.currentTime - startTime : pauseOffset; },
-      get duration()    { return decodedBuffer.duration; },
-      get paused()      { return !isPlaying; },
-      get ended()       { return !isPlaying && pauseOffset >= decodedBuffer.duration - 0.1; },
-      set playbackRate(r) { if (sourceNode) sourceNode.playbackRate.value = r; },
-      play() {
-        if (!isPlaying) {
-          isPlaying = true;
-          playFromOffset(pauseOffset);
-        }
-        return Promise.resolve();
-      },
-      pause() {
-        if (isPlaying) {
-          pauseOffset = audioCtx.currentTime - startTime;
-          isPlaying = false;
-          try { sourceNode.stop(); } catch(e) {}
-        }
-      },
-      restart() {
-        pauseOffset = 0;
-        isPlaying = true;
-        playFromOffset(0);
-      },
-      stop() {
-        isPlaying = false;
-        pauseOffset = 0;
-        try { sourceNode.stop(); } catch(e) {}
-        try { audioCtx.close(); } catch(e) {}
-      },
-      src: 'webaudio' // sentinel so stopNarration knows it's active
-    };
+    if (!useWebAudio) {
+      // ── HTML Audio path (iOS Safari, most browsers) ──────────────
+      const player = new Audio();
+      player.src = blobUrl;
+      player.playbackRate = currentNarrationSpeed;
 
-    playFromOffset(0);
+      // Wait for enough data to play
+      await new Promise((resolve, reject) => {
+        const t = setTimeout(resolve, 5000); // max 5s wait
+        player.oncanplaythrough = () => { clearTimeout(t); resolve(); };
+        player.onerror = (e) => { clearTimeout(t); reject(new Error('Audio load error')); };
+        player.load();
+      });
+
+      player.onended = () => {
+        updatePlayBtn('▶ Play');
+        narrationLoading = false;
+        stopAudioProgressTracking();
+        stopAmbient();
+      };
+
+      audioPlayer = player;
+      await player.play();
+
+    } else {
+      // ── Web Audio path (fallback) ─────────────────────────────────
+      // Attach controls to a proxy object
+      let startTime = audioCtx.currentTime;
+      let pauseOffset = 0;
+      let isPlaying = true;
+      let sourceNode = null;
+
+      function playFromOffset(offset) {
+        if (sourceNode) { try { sourceNode.stop(); } catch(e) {} }
+        sourceNode = audioCtx.createBufferSource();
+        sourceNode.buffer = decodedBuffer;
+        sourceNode.playbackRate.value = currentNarrationSpeed;
+        sourceNode.connect(audioCtx.destination);
+        startTime = audioCtx.currentTime - offset;
+        sourceNode.start(0, offset);
+        sourceNode.onended = () => {
+          if (isPlaying) {
+            isPlaying = false;
+            updatePlayBtn('▶ Play');
+            narrationLoading = false;
+            stopAudioProgressTracking();
+          }
+        };
+      }
+
+      audioPlayer = {
+        _ctx: audioCtx,
+        _buf: decodedBuffer,
+        get currentTime() { return isPlaying ? audioCtx.currentTime - startTime : pauseOffset; },
+        get duration()    { return decodedBuffer.duration; },
+        get paused()      { return !isPlaying; },
+        get ended()       { return !isPlaying && pauseOffset >= decodedBuffer.duration - 0.1; },
+        set playbackRate(r) { if (sourceNode) sourceNode.playbackRate.value = r; },
+        play() {
+          if (!isPlaying) { isPlaying = true; playFromOffset(pauseOffset); }
+          return Promise.resolve();
+        },
+        pause() {
+          if (isPlaying) {
+            pauseOffset = audioCtx.currentTime - startTime;
+            isPlaying = false;
+            try { sourceNode.stop(); } catch(e) {}
+          }
+        },
+        restart() { pauseOffset = 0; isPlaying = true; playFromOffset(0); },
+        stop() {
+          isPlaying = false; pauseOffset = 0;
+          try { sourceNode.stop(); } catch(e) {}
+          try { audioCtx.close(); } catch(e) {}
+        },
+        src: 'webaudio'
+      };
+      playFromOffset(0);
+    }
     updatePlayBtn('⏸ Pause');
     narrationLoading = false;
 
