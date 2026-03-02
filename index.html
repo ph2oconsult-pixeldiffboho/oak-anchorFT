@@ -3733,140 +3733,195 @@ function getStoryTextForNarration() {
 async function startNarration() {
   if (narrationLoading) return;
 
-  // Personal key from Settings (optional — only needed if server key not configured)
-  const apiKey = localStorage.getItem('ao_el_key') || '';
-
   const text = getStoryTextForNarration();
   if (!text) {
-    showToast('Story is still loading — please wait a moment and try again.');
+    showToast('Story is still loading — please wait a moment.');
     return;
   }
 
   narrationLoading = true;
   updatePlayBtn('⏳ Generating audio…', true);
 
+  // ── STEP 1: Unlock audio on iOS immediately (must be in same tap tick) ──
+  // iOS Safari blocks audio unless play() is called directly from a user gesture.
+  // We create a silent AudioContext and play a silent buffer RIGHT NOW,
+  // which satisfies iOS's gesture requirement before any async work begins.
+  try {
+    const unlockCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const buf = unlockCtx.createBuffer(1, 1, 22050);
+    const src = unlockCtx.createBufferSource();
+    src.buffer = buf;
+    src.connect(unlockCtx.destination);
+    src.start(0);
+    await unlockCtx.resume();
+  } catch(e) { /* silently ignore — non-iOS browsers don't need this */ }
+
   try {
     if (audioPlayer) { audioPlayer.pause(); audioPlayer = null; }
 
-    // Try server-side proxy first (key stored in Vercel env var — invisible to users)
-    // Falls back to user-pasted key in Settings if proxy returns NO_KEY
-    let res = await fetch('/api/tts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: text.slice(0, 2500), voiceId: ELEVENLABS_VOICE_ID }),
-    });
+    // ── STEP 2: Fetch audio from server proxy ──────────────────────
+    let audioData = null;
 
-    // If server has no key configured, try user's personal key from Settings
-    if (res.status === 500) {
-      const errJson = await res.json().catch(() => ({}));
-      if (errJson.error === 'NO_KEY') {
-        if (!apiKey) {
-          throw new Error('🔑 No API key configured. Tap ⚙️ Settings to add your ElevenLabs key.');
-        }
-        // Fall back to direct call with user key
-        res = await fetch(
-          `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`,
-          {
-            method: 'POST',
-            headers: { 'xi-api-key': apiKey, 'Content-Type': 'application/json', 'Accept': 'audio/mpeg' },
-            body: JSON.stringify({
-              text: text.slice(0, 2500),
-              model_id: 'eleven_turbo_v2_5',
-              voice_settings: { stability: 0.50, similarity_boost: 0.80, style: 0.30, use_speaker_boost: true },
-            }),
+    try {
+      const res = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: text.slice(0, 2500), voiceId: ELEVENLABS_VOICE_ID }),
+      });
+
+      if (res.ok) {
+        audioData = await res.arrayBuffer();
+      } else if (res.status === 500) {
+        // Server key not set — try personal key from Settings
+        const errJson = await res.json().catch(() => ({}));
+        if (errJson.error === 'NO_KEY') {
+          const apiKey = localStorage.getItem('ao_el_key') || '';
+          if (!apiKey) {
+            throw new Error('NOKEY');
           }
-        );
+          const r2 = await fetch(
+            `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`,
+            {
+              method: 'POST',
+              headers: { 'xi-api-key': apiKey, 'Content-Type': 'application/json', 'Accept': 'audio/mpeg' },
+              body: JSON.stringify({
+                text: text.slice(0, 2500),
+                model_id: 'eleven_turbo_v2_5',
+                voice_settings: { stability: 0.50, similarity_boost: 0.80, style: 0.30, use_speaker_boost: true },
+              }),
+            }
+          );
+          if (!r2.ok) throw new Error(`ElevenLabs error ${r2.status}`);
+          audioData = await r2.arrayBuffer();
+        } else {
+          throw new Error(`Server error — please try again`);
+        }
+      } else if (res.status === 401) {
+        throw new Error('Invalid API key — check Vercel environment variables');
+      } else if (res.status === 429) {
+        throw new Error('Monthly audio quota reached — upgrade ElevenLabs plan');
+      } else {
+        throw new Error(`Audio error ${res.status} — please try again`);
       }
+    } catch(e) {
+      if (e.message === 'NOKEY') {
+        throw new Error('Audio not configured. Please contact support.');
+      }
+      throw e;
     }
 
-    if (!res.ok) {
-      if (res.status === 401) throw new Error('❌ Invalid API key — check it in ⚙️ Settings');
-      if (res.status === 429) throw new Error('Monthly free quota reached — upgrade at elevenlabs.io');
-      throw new Error(`Audio error ${res.status} — please try again`);
-    }
-
-    const arrayBuffer = await res.arrayBuffer();
-    if (!arrayBuffer || arrayBuffer.byteLength < 100) {
+    if (!audioData || audioData.byteLength < 100) {
       throw new Error('Empty audio received — please try again');
     }
 
-    const blob = new Blob([arrayBuffer], { type: 'audio/mpeg' });
-    const url = URL.createObjectURL(blob);
+    // ── STEP 3: Decode and play ────────────────────────────────────
+    // Use Web Audio API to decode — more reliable on iOS than HTML Audio + blob URL
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    await audioCtx.resume();
 
-    audioPlayer = new Audio();
-    audioPlayer.preload = 'auto';
-    audioPlayer.playbackRate = currentNarrationSpeed;
+    const decodedBuffer = await audioCtx.decodeAudioData(audioData);
 
-    // ── Wait for the full audio to buffer before playing ──────────
-    // This guarantees we start from the very first syllable (no cut-off)
-    // and that duration is known before progress tracking begins.
-    updatePlayBtn('⏳ Buffering…', true);
+    // Store reference so we can pause/stop/restart
+    let startTime = audioCtx.currentTime;
+    let pauseOffset = 0;
+    let isPlaying = true;
+    let sourceNode = null;
 
-    await new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => resolve(), 8000); // 8s max wait
-      audioPlayer.oncanplaythrough = () => { clearTimeout(timeout); resolve(); };
-      audioPlayer.onerror = (e) => { clearTimeout(timeout); reject(new Error('Audio load failed')); };
-      audioPlayer.src = url; // set src AFTER attaching listeners
-      audioPlayer.load();    // explicitly trigger buffering
-    });
+    function playFromOffset(offset) {
+      if (sourceNode) { try { sourceNode.stop(); } catch(e) {} }
+      sourceNode = audioCtx.createBufferSource();
+      sourceNode.buffer = decodedBuffer;
+      sourceNode.playbackRate.value = currentNarrationSpeed;
+      sourceNode.connect(audioCtx.destination);
+      startTime = audioCtx.currentTime - offset;
+      sourceNode.start(0, offset);
+      sourceNode.onended = () => {
+        if (isPlaying) {
+          isPlaying = false;
+          updatePlayBtn('▶ Play');
+          narrationLoading = false;
+          stopAudioProgressTracking();
+        }
+      };
+    }
 
-    audioPlayer.onended = () => {
-      updatePlayBtn('▶ Play');
-      narrationLoading = false;
-      stopAudioProgressTracking();
+    // Attach controls to a proxy object so existing pause/stop/restart work
+    audioPlayer = {
+      _ctx: audioCtx,
+      _buf: decodedBuffer,
+      get currentTime() { return isPlaying ? audioCtx.currentTime - startTime : pauseOffset; },
+      get duration()    { return decodedBuffer.duration; },
+      get paused()      { return !isPlaying; },
+      get ended()       { return !isPlaying && pauseOffset >= decodedBuffer.duration - 0.1; },
+      set playbackRate(r) { if (sourceNode) sourceNode.playbackRate.value = r; },
+      play() {
+        if (!isPlaying) {
+          isPlaying = true;
+          playFromOffset(pauseOffset);
+        }
+        return Promise.resolve();
+      },
+      pause() {
+        if (isPlaying) {
+          pauseOffset = audioCtx.currentTime - startTime;
+          isPlaying = false;
+          try { sourceNode.stop(); } catch(e) {}
+        }
+      },
+      restart() {
+        pauseOffset = 0;
+        isPlaying = true;
+        playFromOffset(0);
+      },
+      stop() {
+        isPlaying = false;
+        pauseOffset = 0;
+        try { sourceNode.stop(); } catch(e) {}
+        try { audioCtx.close(); } catch(e) {}
+      },
+      src: 'webaudio' // sentinel so stopNarration knows it's active
     };
-    audioPlayer.onerror = () => {
-      updatePlayBtn('▶ Play');
-      narrationLoading = false;
-      showToast('Playback error — try again');
-    };
 
-    // Now play — audio is fully buffered, starts from byte 0
-    const playPromise = audioPlayer.play();
-    if (playPromise) await playPromise;
-
+    playFromOffset(0);
     updatePlayBtn('⏸ Pause');
     narrationLoading = false;
 
-    // Show restart button
     const restartBtn = document.getElementById('btn-restart');
     if (restartBtn) restartBtn.style.display = 'inline-block';
 
-    // Progress tracking starts NOW — duration is guaranteed to be known
     startAudioProgressTracking();
     if (ambientOn) startAmbient();
 
-  } catch (e) {
+  } catch(e) {
     narrationLoading = false;
     updatePlayBtn('▶ Play');
     console.error('TTS:', e.message);
-    showToast(e.message || 'Audio failed — check your key in ⚙️ Settings', 5000);
+    const msg = e.message || 'Audio failed — please try again';
+    showToast(msg, 5000);
   }
 }
 
-
 function restartNarration() {
   if (!audioPlayer) { startNarration(); return; }
-  audioPlayer.currentTime = 0;
-  if (audioPlayer.paused) {
-    audioPlayer.play().then(() => {
-      updatePlayBtn('⏸ Pause');
-      startAudioProgressTracking();
-    }).catch(() => startNarration());
+  if (audioPlayer.restart) {
+    audioPlayer.restart();
+  } else {
+    audioPlayer.currentTime = 0;
+    audioPlayer.play().catch(() => startNarration());
   }
-  // Flash the waveform to give feedback
+  updatePlayBtn('⏸ Pause');
+  startAudioProgressTracking();
   const wf = document.getElementById('audio-waveform');
   if (wf) { wf.style.opacity = '0.3'; setTimeout(() => wf.style.opacity = '1', 200); }
 }
 
 function toggleNarration() {
-  if (!audioPlayer || audioPlayer.ended) {
+  if (!audioPlayer || audioPlayer.ended || audioPlayer.src === '') {
     startNarration();
     return;
   }
   if (audioPlayer.paused) {
-    audioPlayer.play().catch(() => startNarration());
-    updatePlayBtn('⏸ Pause');
+    audioPlayer.play().then(() => updatePlayBtn('⏸ Pause')).catch(() => startNarration());
   } else {
     audioPlayer.pause();
     updatePlayBtn('▶ Resume');
@@ -3876,8 +3931,8 @@ function toggleNarration() {
 function stopNarration() {
   narrationLoading = false;
   if (audioPlayer) {
-    audioPlayer.pause();
-    audioPlayer.src = '';
+    if (audioPlayer.stop) audioPlayer.stop();
+    else { try { audioPlayer.pause(); } catch(e) {} }
     audioPlayer = null;
   }
   updatePlayBtn('▶ Play');
@@ -3899,7 +3954,14 @@ function updatePlayBtn(label, disabled = false) {
 let currentNarrationSpeed = 1.0;
 function setSpeed(rate) {
   currentNarrationSpeed = rate;
-  if (audioPlayer) audioPlayer.playbackRate = rate;
+  if (audioPlayer) {
+    if (audioPlayer._ctx) {
+      // Web Audio proxy — update source node directly
+      try { audioPlayer._buf && (audioPlayer.playbackRate = rate); } catch(e) {}
+    } else {
+      audioPlayer.playbackRate = rate;
+    }
+  }
   document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
   const map = { 0.75: 'speed-075', 0.85: 'speed-085', 1.1: 'speed-110' };
   const el = document.getElementById(map[rate]);
