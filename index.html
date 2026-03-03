@@ -3715,9 +3715,17 @@ async function startNarration() {
   updatePlayBtn('⏳ Generating audio…', true);
 
   // ── STEP 1: Unlock audio on iOS immediately (must be in same tap tick) ──
-  // iOS Safari blocks audio unless play() is called directly from a user gesture.
-  // We create a silent AudioContext and play a silent buffer RIGHT NOW,
-  // which satisfies iOS's gesture requirement before any async work begins.
+  // iOS Safari requires play() to be called synchronously during a user gesture.
+  // We pre-create the Audio element and call play() RIGHT NOW with an empty src,
+  // then swap in the real audio blob after fetching. This keeps iOS satisfied.
+  let iosUnlockPlayer = null;
+  try {
+    iosUnlockPlayer = new Audio();
+    iosUnlockPlayer.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA='; // silent wav
+    iosUnlockPlayer.play().catch(() => {}); // unlock gesture — ignore errors
+  } catch(e) {}
+
+  // Also unlock AudioContext for ambient sound
   try {
     const unlockCtx = new (window.AudioContext || window.webkitAudioContext)();
     const buf = unlockCtx.createBuffer(1, 1, 22050);
@@ -3726,7 +3734,7 @@ async function startNarration() {
     src.connect(unlockCtx.destination);
     src.start(0);
     await unlockCtx.resume();
-  } catch(e) { /* silently ignore — non-iOS browsers don't need this */ }
+  } catch(e) {}
 
   try {
     if (audioPlayer) { audioPlayer.pause(); audioPlayer = null; }
@@ -3820,16 +3828,19 @@ async function startNarration() {
 
     if (!useWebAudio) {
       // ── HTML Audio path (iOS Safari, most browsers) ──────────────
-      const player = new Audio();
+      // Reuse the pre-unlocked player from Step 1 so iOS allows playback
+      const player = iosUnlockPlayer || new Audio();
+      player.pause();
+      player.currentTime = 0;
       player.src = blobUrl;
       player.playbackRate = currentNarrationSpeed;
+      player.load();
 
-      // Wait for enough data to play
+      // Wait for enough data
       await new Promise((resolve, reject) => {
-        const t = setTimeout(resolve, 5000); // max 5s wait
+        const t = setTimeout(resolve, 5000);
         player.oncanplaythrough = () => { clearTimeout(t); resolve(); };
-        player.onerror = (e) => { clearTimeout(t); reject(new Error('Audio load error')); };
-        player.load();
+        player.onerror = () => { clearTimeout(t); reject(new Error('Audio load error')); };
       });
 
       player.onended = () => {
@@ -3840,7 +3851,14 @@ async function startNarration() {
       };
 
       audioPlayer = player;
-      await player.play();
+      // play() — iOS allows this because we called play() on this element earlier
+      try {
+        await player.play();
+      } catch(e) {
+        // If still blocked, try once more after a tiny delay
+        await new Promise(r => setTimeout(r, 100));
+        await player.play();
+      }
 
     } else {
       // ── Web Audio path (fallback) ─────────────────────────────────
