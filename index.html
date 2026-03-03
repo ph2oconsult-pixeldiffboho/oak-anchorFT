@@ -2723,6 +2723,40 @@ body.kid-mode .kid-mode-banner { display: block; }
     <div id="api-key-status" style="display:none"></div>
 
     <hr style="border-color:#3a2a18;margin:1rem 0">
+
+    <!-- Dev Mode — hidden, triggered by tapping version text 5x -->
+    <div style="text-align:center;margin-top:0.5rem">
+      <span id="dev-mode-trigger" onclick="devModeTap()" style="font-size:0.65rem;color:#3a2a18;cursor:default;user-select:none">
+        v2.4 · Anchor & Oak
+      </span>
+    </div>
+
+    <!-- Dev mode password panel — hidden until triggered -->
+    <div id="dev-mode-panel" style="display:none;margin-top:1rem;padding:0.8rem;background:#0f0a04;border:1px solid #3a2a18;border-radius:8px">
+      <div style="color:var(--gold);font-size:0.8rem;font-weight:700;margin-bottom:0.6rem;text-transform:uppercase;letter-spacing:0.08em">🔐 Admin Access</div>
+      <input type="password" id="dev-password-input" placeholder="Enter admin password"
+        style="width:100%;box-sizing:border-box;padding:0.5rem 0.8rem;background:#1a1008;border:1.5px solid #3a2a18;border-radius:6px;color:var(--parchment);font-size:0.9rem;outline:none;margin-bottom:0.5rem;min-height:44px"
+        onkeydown="if(event.key==='Enter')checkDevPassword()">
+      <div style="display:flex;gap:0.5rem">
+        <button onclick="checkDevPassword()" style="flex:1;background:var(--gold);color:white;border:none;padding:0.5rem;border-radius:6px;font-family:'Crimson Pro',serif;font-size:0.9rem;cursor:pointer;min-height:44px">
+          Unlock
+        </button>
+        <button onclick="document.getElementById('dev-mode-panel').style.display='none'" style="background:#2a1a08;color:#7a6040;border:1px solid #3a2a18;padding:0.5rem 0.8rem;border-radius:6px;font-size:0.9rem;cursor:pointer;min-height:44px">
+          Cancel
+        </button>
+      </div>
+      <div id="dev-mode-status" style="font-size:0.75rem;margin-top:0.4rem;color:#7a6040;text-align:center"></div>
+      <!-- Active dev mode indicator -->
+      <div id="dev-mode-active" style="display:none;margin-top:0.6rem;padding:0.5rem;background:#1a2a1a;border:1px solid #2a4a2a;border-radius:6px;text-align:center">
+        <div style="color:#6abf6a;font-size:0.82rem;font-weight:600">✅ Admin Mode Active</div>
+        <div style="color:#4a7a4a;font-size:0.72rem;margin-top:0.2rem">Full access enabled for testing</div>
+        <button onclick="disableDevMode()" style="margin-top:0.5rem;background:#3a1a1a;color:#bf6a6a;border:1px solid #5a2a2a;padding:0.3rem 0.8rem;border-radius:6px;font-size:0.78rem;cursor:pointer">
+          Disable Admin Mode
+        </button>
+      </div>
+    </div>
+
+    <hr style="border-color:#3a2a18;margin:1rem 0">
     <div style="margin-bottom:1rem">
       <p style="color:var(--parchment-dark);font-size:0.9rem;margin-bottom:0.5rem">📊 Your progress</p>
       <p style="color:#7a6040;font-size:0.85rem">Stories completed: <strong style="color:var(--gold)" id="settings-count">—</strong></p>
@@ -4644,6 +4678,85 @@ function dismissStickyCta() {
 setTimeout(() => {
   if (document.getElementById('page-home')?.style.display !== 'none') showStickyCta();
 }, 4000);
+
+// ─── ADMIN / DEV MODE ─────────────────────────────────────────────
+// Secret: tap the version text in Settings 5 times to reveal password panel
+// Password is SHA-256 hashed — never stored in plain text
+const DEV_PASSWORD_HASH = 'c897b9a40b5e25b7504e1595411d7af5af214702c97ef83e6761742396454e9d';
+let devTapCount = 0;
+let devTapTimer = null;
+
+function devModeTap() {
+  devTapCount++;
+  clearTimeout(devTapTimer);
+  devTapTimer = setTimeout(() => { devTapCount = 0; }, 2000); // reset if too slow
+  if (devTapCount >= 5) {
+    devTapCount = 0;
+    const panel = document.getElementById('dev-mode-panel');
+    if (panel) {
+      panel.style.display = 'block';
+      updateDevModeUI();
+      setTimeout(() => document.getElementById('dev-password-input')?.focus(), 100);
+    }
+  }
+}
+
+async function hashPassword(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+async function checkDevPassword() {
+  const input = document.getElementById('dev-password-input');
+  const status = document.getElementById('dev-mode-status');
+  if (!input || !input.value) return;
+
+  const hash = await hashPassword(input.value);
+  input.value = '';
+
+  if (hash === DEV_PASSWORD_HASH) {
+    // Correct — enable admin mode
+    localStorage.setItem('ao_dev_mode', '1');
+    isMember = true;
+    status.style.color = '#6abf6a';
+    status.textContent = '✅ Admin mode enabled';
+    updateDevModeUI();
+    showToast('🔐 Admin mode active — full access enabled');
+    // Refresh current page to show unlocked content
+    setTimeout(() => {
+      const page = document.querySelector('[id^="page-"]:not([style*="display: none"])');
+      if (page) showPage(page.id.replace('page-',''));
+    }, 500);
+  } else {
+    status.style.color = '#bf6a6a';
+    status.textContent = '❌ Incorrect password';
+    setTimeout(() => { if (status) status.textContent = ''; }, 2000);
+  }
+}
+
+function disableDevMode() {
+  localStorage.removeItem('ao_dev_mode');
+  isMember = false;
+  updateDevModeUI();
+  showToast('Admin mode disabled');
+  document.getElementById('dev-mode-panel').style.display = 'none';
+}
+
+function updateDevModeUI() {
+  const active = document.getElementById('dev-mode-active');
+  const trigger = document.getElementById('dev-mode-trigger');
+  const isActive = localStorage.getItem('ao_dev_mode') === '1';
+  if (active) active.style.display = isActive ? 'block' : 'none';
+  if (trigger) trigger.style.color = isActive ? '#6abf6a' : '#3a2a18';
+}
+
+function loadDevMode() {
+  if (localStorage.getItem('ao_dev_mode') === '1') {
+    isMember = true;
+    updateDevModeUI();
+  }
+}
+
 // ─── DASHBOARD ────────────────────────────────────────────────────
 function updateDashboard() {
   const completed = getCompletedStories();
@@ -4739,6 +4852,7 @@ async function testApiKey() {
 }
 
 function openSettings() {
+  updateDevModeUI();
   document.getElementById('settings-overlay').classList.add('open');
   // Populate stats
   const completed = getCompletedStories();
@@ -4827,6 +4941,7 @@ loadSavedApiKey();
 if (localStorage.getItem('ao_kid_mode') === '1') applyKidMode();
 loadAutoPlayPref();
 loadAmbientPref();
+loadDevMode();
 renderStories('all');
 updateProgressBar();
 </script>
