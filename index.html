@@ -4721,12 +4721,15 @@ async function checkDevPassword() {
     status.style.color = '#6abf6a';
     status.textContent = '✅ Admin mode enabled';
     updateDevModeUI();
+    // Call same unlock functions as PayPal payment success
+    document.getElementById('member-bar')?.classList.add('visible');
+    if (typeof updateLockedUI === 'function') updateLockedUI();
     showToast('🔐 Admin mode active — full access enabled');
-    // Refresh current page to show unlocked content
     setTimeout(() => {
-      const page = document.querySelector('[id^="page-"]:not([style*="display: none"])');
-      if (page) showPage(page.id.replace('page-',''));
-    }, 500);
+      document.getElementById('dev-mode-panel').style.display = 'none';
+      closeSettings();
+      showPage('stories');
+    }, 800);
   } else {
     status.style.color = '#bf6a6a';
     status.textContent = '❌ Incorrect password';
@@ -4738,8 +4741,12 @@ function disableDevMode() {
   localStorage.removeItem('ao_dev_mode');
   isMember = false;
   updateDevModeUI();
-  showToast('Admin mode disabled');
+  document.getElementById('member-bar')?.classList.remove('visible');
+  if (typeof updateLockedUI === 'function') updateLockedUI();
+  showToast('Admin mode disabled — viewing as free user');
   document.getElementById('dev-mode-panel').style.display = 'none';
+  closeSettings();
+  showPage('stories');
 }
 
 function updateDevModeUI() {
@@ -4754,6 +4761,11 @@ function loadDevMode() {
   if (localStorage.getItem('ao_dev_mode') === '1') {
     isMember = true;
     updateDevModeUI();
+    // updateLockedUI called after DOM ready
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('member-bar')?.classList.add('visible');
+      if (typeof updateLockedUI === 'function') updateLockedUI();
+    });
   }
 }
 
