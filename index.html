@@ -3552,7 +3552,7 @@ DISCUSSION QUESTIONS:
 CLOSING PRAYER:
 [A simple, heartfelt 3-4 sentence prayer a father can pray with his child. Use "we" and "us" language.]`;
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    const response = await fetch("/api/claude", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -4136,7 +4136,7 @@ MEMORY VERSE CARD: A decorative card (cut-out style) with the verse: "${story.ve
 
 Return ONLY the HTML content (no DOCTYPE, no body tags, just the inner content).`;
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    const response = await fetch("/api/claude", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
