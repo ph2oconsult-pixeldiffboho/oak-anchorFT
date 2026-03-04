@@ -4265,28 +4265,30 @@ Return ONLY the HTML content (no DOCTYPE, no body tags, just inner content). Mak
 function buildWatermark(story) {
   const year = new Date().getFullYear();
   return `
-  <div class="print-watermark" style="
-    margin-top: 2.5rem;
-    padding-top: 0.8rem;
-    border-top: 2px solid #b8892a;
+  <div style="
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 0.5rem 1rem;
+    border-top: 1.5px solid #b8892a;
+    background: #f5edd8;
     display: flex;
     align-items: center;
     justify-content: space-between;
     flex-wrap: wrap;
-    gap: 0.4rem;
+    gap: 0.3rem;
     font-family: 'Crimson Pro', Georgia, serif;
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     color: #7a6040;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.03em;
+    z-index: 9999;
   ">
     <span>⚓ <strong style="color:#b8892a">Anchor &amp; Oak — The Father's Table</strong> · anchorandoak.com.au</span>
     <span>${story ? story.title + ' · Month ' + story.month : ''}</span>
-    <span>© ${year} Anchor &amp; Oak · For personal &amp; family use only · Not for redistribution</span>
-  </div>
-  <div style="
-    font-size:0.65rem;color:#c0a870;text-align:center;
-    margin-top:0.3rem;font-style:italic;
-  ">Church or group use? Email hello@anchorandoak.com.au for licensing information.</div>`;
+    <span>© ${year} Anchor &amp; Oak · Personal &amp; family use only</span>
+    <span style="font-style:italic;width:100%;text-align:center;font-size:0.63rem;color:#c0a870">Church or group use? Email hello@anchorandoak.com.au for licensing.</span>
+  </div>`;
 }
 
 // Also inject watermark into printed stories
