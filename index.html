@@ -4185,13 +4185,18 @@ async function generateWorkbookForStory(story, type) {
         '<span style="font-weight:bold;font-family:monospace;font-size:14px;letter-spacing:2px;color:#1a1209;padding:3px 8px;border:1px solid #c8a850;border-radius:3px;">' + w + '</span>'
       ).join('');
 
-      const wsHtml = '<div style="text-align:center;padding:1rem;font-family:'Crimson Pro',serif;">' +
-        '<h2 style="color:#b8892a;font-family:'Playfair Display',serif;margin-bottom:0.25rem">Word Search</h2>' +
-        '<p style="color:#5a4030;font-size:0.9rem;margin-bottom:1rem;font-style:italic">' + story.title + '</p>' +
-        tableHtml +
-        '<div style="margin-top:1.2rem;"><p style="color:#b8892a;font-weight:bold;margin-bottom:0.5rem">Find these words:</p>' +
-        '<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:440px;margin:0 auto;">' + wordListHtml + '</div>' +
-        '<p style="color:#9a8060;font-size:0.75rem;margin-top:0.75rem;font-style:italic">Words go across (→) or down (↓)</p></div></div>';
+      const wsHtml = ["<div style='text-align:center;padding:1rem;font-family:Georgia,serif'>",
+        "<h2 style='color:#b8892a;margin-bottom:0.25rem'>Word Search</h2>",
+        "<p style='color:#5a4030;font-size:0.9rem;margin-bottom:1rem;font-style:italic'>", story.title, "</p>",
+        tableHtml,
+        "<div style='margin-top:1.2rem;'>",
+        "<p style='color:#b8892a;font-weight:bold;margin-bottom:0.5rem'>Find these words:</p>",
+        "<div style='display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:440px;margin:0 auto;'>",
+        wordListHtml,
+        "</div>",
+        "<p style='color:#9a8060;font-size:0.75rem;margin-top:0.75rem;font-style:italic'>Words go across → or down ↓</p>",
+        "</div></div>"
+      ].join('');
 
       const watermark = buildWatermark(story);
       body.innerHTML = '<div style="background:#f5edd8;min-height:100%;" id="printable-workbook">' + wsHtml + watermark + '</div>';
@@ -4299,7 +4304,7 @@ function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
 
   const swCode = `
-const CACHE = 'fathers-table-v2';
+const CACHE = 'fathers-table-v3';
 const OFFLINE_URL = self.location.href;
 
 self.addEventListener('install', e => {
@@ -5029,4 +5034,19 @@ function updateModalStars() {
   ).join('');
 }
 
-// ─── INITIAL
+
+// ─── INITIALISE ───────────────────────────────────────────────────
+checkMembership();
+checkPayPalReturn();
+checkOnboarding();
+loadAccessibilityPrefs();
+loadSavedApiKey();
+if (localStorage.getItem('ao_kid_mode') === '1') applyKidMode();
+loadAutoPlayPref();
+loadAmbientPref();
+loadDevMode();
+renderStories('all');
+updateProgressBar();
+</script>
+</body>
+</html>
