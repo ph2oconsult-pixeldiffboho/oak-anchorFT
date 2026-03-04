@@ -2549,7 +2549,7 @@ body.kid-mode .kid-mode-banner { display: block; }
       <div style="margin-top:1rem;padding:1rem;background:var(--ink);border-radius:var(--radius)">
         <p style="color:var(--gold);font-family:'Playfair Display',serif;font-size:1rem;margin-bottom:0.5rem">📩 Enquire About a Church Licence</p>
         <p style="color:var(--parchment-dark);font-size:0.9rem;margin-bottom:0.8rem">Contact us to discuss pricing for your congregation size. We offer tiered licensing for churches of all sizes — from small groups to large multi-campus ministries.</p>
-        <a href="mailto:hello@anchorandoak.com.au" style="display:inline-block;background:var(--gold);color:white;padding:0.6rem 1.3rem;border-radius:var(--radius);font-family:'Playfair Display',serif;text-decoration:none;font-size:0.95rem">Email hello@anchorandoak.com.au →</a>
+        <a href="/cdn-cgi/l/email-protection#442c2128282b04252a272c2b36252a202b252f6a272b296a2531" style="display:inline-block;background:var(--gold);color:white;padding:0.6rem 1.3rem;border-radius:var(--radius);font-family:'Playfair Display',serif;text-decoration:none;font-size:0.95rem">Email <span class="__cf_email__" data-cfemail="d3bbb6bfbfbc93b2bdb0bbbca1b2bdb7bcb2b8fdb0bcbefdb2a6">[email&#160;protected]</span> →</a>
       </div>
     </div>
 
@@ -2566,7 +2566,7 @@ body.kid-mode .kid-mode-banner { display: block; }
 
     <div class="legal-section">
       <h3>11. Contact</h3>
-      <p>Questions about these Terms? Contact us at <a href="mailto:hello@anchorandoak.com.au" style="color:var(--gold)">hello@anchorandoak.com.au</a></p>
+      <p>Questions about these Terms? Contact us at <a href="/cdn-cgi/l/email-protection#0c64696060634c6d626f64637e6d6268636d67226f6361226d79" style="color:var(--gold)"><span class="__cf_email__" data-cfemail="533b363f3f3c13323d303b3c21323d373c32387d303c3e7d3226">[email&#160;protected]</span></a></p>
       <p style="margin-top:0.5rem;font-size:0.88rem;color:#7a6040">Anchor &amp; Oak · Victoria, Australia · ABN: [YOUR ABN]</p>
     </div>
 
@@ -2812,7 +2812,7 @@ body.kid-mode .kid-mode-banner { display: block; }
     <span onclick="showPage('pricing')" style="cursor:pointer;color:#7a6040;font-size:0.82rem;transition:color 0.2s" onmouseover="this.style.color='#b8892a'" onmouseout="this.style.color='#7a6040'">⭐ Full Access</span>
     <span onclick="showPage('legal')" style="cursor:pointer;color:#7a6040;font-size:0.82rem;transition:color 0.2s" onmouseover="this.style.color='#b8892a'" onmouseout="this.style.color='#7a6040'">📜 Terms of Service</span>
     <span onclick="showPage('legal');setTimeout(()=>document.querySelector('.legal-section:nth-child(9)')?.scrollIntoView({behavior:'smooth'}),200)" style="cursor:pointer;color:#7a6040;font-size:0.82rem;transition:color 0.2s" onmouseover="this.style.color='#b8892a'" onmouseout="this.style.color='#7a6040'">🏛️ Church Licensing</span>
-    <a href="mailto:hello@anchorandoak.com.au" style="color:#7a6040;font-size:0.82rem;text-decoration:none;transition:color 0.2s" onmouseover="this.style.color='#b8892a'" onmouseout="this.style.color='#7a6040'">✉️ Contact</a>
+    <a href="/cdn-cgi/l/email-protection#28404d4444476849464b40475a49464c474943064b474506495d" style="color:#7a6040;font-size:0.82rem;text-decoration:none;transition:color 0.2s" onmouseover="this.style.color='#b8892a'" onmouseout="this.style.color='#7a6040'">✉️ Contact</a>
   </div>
 
   <!-- Copyright -->
@@ -2822,7 +2822,7 @@ body.kid-mode .kid-mode-banner { display: block; }
   </p>
 </footer>
 
-<script>
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
 // ═══════════════════════════════════════════════════════════════════
 // ⚙️  PAYPAL CONFIGURATION — ADD YOUR DETAILS HERE WHEN READY
 // ───────────────────────────────────────────────────────────────────
@@ -4114,7 +4114,7 @@ async function generateWorkbookForStory(story, type) {
     }
 
     if (type === 'wordsearch') {
-      prompt = 'Create a word search activity for the Bible story "' + story.title + '" for children aged 5-7.\n\nFormat as clean HTML with inline styles. Theme: parchment (#f5edd8), gold (#b8892a).\nInclude:\n- Title "Word Search \u2014 ' + story.title + '"\n- A genuine 12x12 letter grid as an HTML table where 10 key words from the story are hidden (horizontally and vertically only)\n- The 10 words listed clearly below the grid in 2 columns\n- Grid cells: 28px x 28px, border, centered, font-size 16px, font-weight bold\n- Print-friendly\n\nReturn ONLY the HTML content (no DOCTYPE, no body tags).';
+      prompt = 'Create a word search puzzle for the Bible story "' + story.title + '" for children aged 5-7.\n\nSTEP 1: Choose 8 key words from the story (max 8 letters each, all UPPERCASE).\n\nSTEP 2: Build a real 12x12 letter grid. Place each word in the grid (horizontal left-to-right or vertical top-to-bottom only). Fill remaining cells with random uppercase letters. Every word MUST actually appear in the grid exactly as listed.\n\nSTEP 3: Output clean HTML with inline styles. Theme: parchment (#f5edd8), gold (#b8892a), dark brown (#1a1209).\n\nHTML structure:\n- h2 title: "Word Search — ' + story.title + '"\n- A 12x12 HTML <table> with each cell: width:30px, height:30px, text-align:center, font-weight:bold, font-size:15px, border:1px solid #b8892a, font-family:monospace\n- Below the table: "Find these words:" heading\n- The 8 words in a 2-column flex layout, each word in bold uppercase\n- A small note: "Words go across or down"\n\nReturn ONLY the HTML (no DOCTYPE, no body tags, no explanation).';
     }
 
     if (type === 'journal') {
@@ -4157,11 +4157,18 @@ async function generateWorkbookForStory(story, type) {
 function buildWatermark(story) {
   const year = new Date().getFullYear();
   return `
-  <div style="
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
+  <style>
+    @media print {
+      .ao-watermark {
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+      }
+    }
+  </style>
+  <div class="ao-watermark" style="
+    margin-top: 2rem;
     padding: 0.5rem 1rem;
     border-top: 1.5px solid #b8892a;
     background: #f5edd8;
@@ -4174,7 +4181,6 @@ function buildWatermark(story) {
     font-size: 0.68rem;
     color: #7a6040;
     letter-spacing: 0.03em;
-    z-index: 9999;
   ">
     <span>⚓ <strong style="color:#b8892a">Anchor &amp; Oak — The Father's Table</strong> · anchorandoak.com.au</span>
     <span>${story ? story.title + ' · Month ' + story.month : ''}</span>
@@ -4942,18 +4948,4 @@ function updateModalStars() {
   ).join('');
 }
 
-// ─── INITIALISE ───────────────────────────────────────────────────
-checkMembership();
-checkPayPalReturn();
-checkOnboarding();
-loadAccessibilityPrefs();
-loadSavedApiKey();
-if (localStorage.getItem('ao_kid_mode') === '1') applyKidMode();
-loadAutoPlayPref();
-loadAmbientPref();
-loadDevMode();
-renderStories('all');
-updateProgressBar();
-</script>
-</body>
-</html>
+// ─── INITIAL
