@@ -2302,12 +2302,7 @@ body.kid-mode .kid-mode-banner { display: block; }
   </div>
 
   <div class="workbook-grid">
-    <div class="workbook-card">
-      <div class="workbook-icon">🎨</div>
-      <h3>Colouring Page</h3>
-      <p>Simple line drawings of Bible scenes for children to colour during or after story time.</p>
-      <button class="btn btn-primary" onclick="generateWorkbook('coloring')">Create & Print</button>
-    </div>
+
     <div class="workbook-card">
       <div class="workbook-icon">✏️</div>
       <h3>Fill-in-the-Blank</h3>
@@ -2332,9 +2327,15 @@ body.kid-mode .kid-mode-banner { display: block; }
       <p>A beautifully formatted verse card to cut out, decorate and place somewhere visible at home.</p>
       <button class="btn btn-primary" onclick="generateWorkbook('versecard')">Create & Print</button>
     </div>
+    <div class="workbook-card">
+      <div class="workbook-icon">💬</div>
+      <h3>Table Talk Card</h3>
+      <p>3 conversation starters Dad can keep in his pocket — for dinner, the car, or bedtime.</p>
+      <button class="btn btn-primary" onclick="generateWorkbook('tabletalk')">Create & Print</button>
+    </div>
     <div class="workbook-card" style="border-top-color:var(--gold)">
       <div class="workbook-icon">📦</div>
-      <h3>Full Workbook Pack</h3>
+      <h3>Full Activity Pack</h3>
       <p>All five activities in one printable document — a complete companion to any story.</p>
       <button class="btn btn-gold" onclick="generateWorkbook('all')">Create Full Pack</button>
     </div>
@@ -4097,169 +4098,60 @@ function closeWorkbookModal(e) {
 
 async function generateWorkbookForStory(story, type) {
   currentWorkbookType = type;
-  document.getElementById('wb-modal-title').textContent = `${story.title} – Workbook`;
-  document.getElementById('wb-modal-meta').textContent = `${type === 'all' ? 'Full Activity Pack' : type.charAt(0).toUpperCase() + type.slice(1)} · Month ${story.month}`;
+  document.getElementById('wb-modal-title').textContent = story.title + ' – Workbook';
+  document.getElementById('wb-modal-meta').textContent = (type === 'all' ? 'Full Activity Pack' : type.charAt(0).toUpperCase() + type.slice(1)) + ' · Month ' + story.month;
   document.getElementById('workbook-modal').classList.add('open');
   document.body.style.overflow = 'hidden';
 
   const body = document.getElementById('wb-modal-body');
-  body.innerHTML = `<div class="story-content loading"><div class="loading-cross"></div><p style="font-family:'Playfair Display',serif;color:var(--gold)">Preparing your workbook…</p></div>`;
+  body.innerHTML = '<div class="story-content loading"><div class="loading-cross"></div><p style="font-family:\'Playfair Display\',serif;color:var(--gold)">Preparing your workbook\u2026</p></div>';
 
   try {
-    const typeDescriptions = {
-      all: 'ALL of these activities',
-      coloring: 'a description of a simple colouring scene (describe SVG-friendly line art)',
-      fillblank: 'a fill-in-the-blank activity with 6 sentences from the story',
-      wordsearch: 'a word search using 10 key story words',
-      journal: 'a reflection journal page with 3 child-friendly prompts for drawing/writing',
-      versecard: 'a beautifully formatted memory verse card'
-    };
-
-    // Build targeted prompt per workbook type
     let prompt = '';
 
-    if (type === 'coloring' || type === 'all') {
-      prompt += `You are an expert children's book illustrator creating a printable colouring page for ages 4-7.
-
-Create a DETAILED SVG colouring page (600x750px) for the Bible story: "${story.title}"
-Characters: ${story.character} | Theme: ${story.focus}
-
-CRITICAL RULES:
-1. ALL shapes: fill="white" stroke="#1a1209" stroke-width="2.5" — NO coloured fills
-2. Use COMPLEX SVG paths with bezier curves — NOT simple circles/rectangles
-3. Human figures: ellipse head, curved torso path, leg paths, arm paths, clothing fold lines
-4. Trees: curved trunk path, detailed multi-lobe leaf cluster paths (not a circle)
-5. Animals: body path, head, legs, tail — clearly recognisable
-6. Clouds: multiple overlapping ellipses forming natural cloud shapes
-7. Ground: gently curved horizontal path across lower third
-8. Use <path d="M...C...S...Q..."> bezier curves for ALL organic shapes
-9. Minimum 30 distinct SVG elements for a rich detailed scene
-10. Characters should be 120-160px tall and prominently featured
-
-LAYOUT (600x750px):
-- y 0-160: Sky — detailed sun or moon, clouds, birds if appropriate
-- y 160-380: Background — landscape elements specific to "${story.title}" (hills, buildings, water, desert, garden etc)
-- y 320-580: MAIN SCENE — ${story.character} in the key story moment, large and detailed, with story objects
-- y 550-700: Foreground — grass tufts, rocks, flowers, animals, story props
-- y 700-730: Title banner rect with text "${story.title}"
-- Full border: decorative rect or path frame
-
-Draw the single most iconic moment from "${story.title}". Make characters expressive with body language. Include at least 4 story-specific props a child would recognise.
-
-Return ONLY the raw SVG: <svg width="600" height="750" xmlns="http://www.w3.org/2000/svg">...</svg>`;
-    }
     if (type === 'fillblank') {
-      prompt = `Create a fill-in-the-blank activity for the Bible story "${story.title}" (key verse: ${story.verse}) for children aged 4-7.
-
-Format as clean HTML with inline styles. Theme: parchment background (#f5edd8), gold headings (#b8892a), dark brown text (#1a1209).
-Include:
-- A decorative title "Fill in the Blanks — ${story.title}"
-- 6 sentences from the story with ONE key word blanked out as ___________
-- Each sentence on its own line with a number
-- An "Answers" section at the bottom (smaller text, upside down or clearly separated)
-- Print-friendly layout, large font (18px minimum)
-
-Return ONLY the HTML content (no DOCTYPE, no body tags).`;
+      prompt = 'Create a fill-in-the-blank activity for the Bible story "' + story.title + '" (key verse: ' + story.verse + ') for children aged 4-7.\n\nFormat as clean HTML with inline styles. Theme: parchment background (#f5edd8), gold headings (#b8892a), dark brown text (#1a1209).\nInclude:\n- A decorative title "Fill in the Blanks \u2014 ' + story.title + '"\n- 6 sentences from the story with ONE key word blanked out as ___________\n- Each sentence on its own line with a number\n- An "Answers" section at the bottom (smaller text, clearly separated)\n- Print-friendly layout, large font (18px minimum)\n\nReturn ONLY the HTML content (no DOCTYPE, no body tags).';
     }
 
     if (type === 'wordsearch') {
-      prompt = `Create a word search activity for the Bible story "${story.title}" for children aged 5-7.
-
-Format as clean HTML with inline styles. Theme: parchment (#f5edd8), gold (#b8892a).
-Include:
-- Title "Word Search — ${story.title}"
-- A genuine 12x12 letter grid as an HTML table where 10 key words from the story are hidden (horizontally and vertically only)
-- The 10 words listed clearly below the grid in 2 columns
-- Grid cells: 28px x 28px, border, centered, font-size 16px, font-weight bold
-- Print-friendly
-
-Return ONLY the HTML content (no DOCTYPE, no body tags).`;
+      prompt = 'Create a word search activity for the Bible story "' + story.title + '" for children aged 5-7.\n\nFormat as clean HTML with inline styles. Theme: parchment (#f5edd8), gold (#b8892a).\nInclude:\n- Title "Word Search \u2014 ' + story.title + '"\n- A genuine 12x12 letter grid as an HTML table where 10 key words from the story are hidden (horizontally and vertically only)\n- The 10 words listed clearly below the grid in 2 columns\n- Grid cells: 28px x 28px, border, centered, font-size 16px, font-weight bold\n- Print-friendly\n\nReturn ONLY the HTML content (no DOCTYPE, no body tags).';
     }
 
     if (type === 'journal') {
-      prompt = `Create a reflection journal page for the Bible story "${story.title}" for children aged 4-7.
-
-Format as clean HTML with inline styles. Theme: parchment (#f5edd8), gold (#b8892a).
-Include:
-- Decorative title "My Story Journal — ${story.title}"
-- 3 child-friendly prompts:
-  1. A DRAW prompt (with a large empty drawing box, at least 200px tall, dashed border)
-  2. A WRITE prompt (with lined writing space, 5 lines)
-  3. A SHARE prompt (something to tell Dad about)
-- The key verse "${story.verse}" at the bottom in a decorative box
-- Large friendly fonts, lots of white space
-
-Return ONLY the HTML content (no DOCTYPE, no body tags).`;
+      prompt = 'Create a reflection journal page for the Bible story "' + story.title + '" for children aged 4-7.\n\nFormat as clean HTML with inline styles. Theme: parchment (#f5edd8), gold (#b8892a).\nInclude:\n- Decorative title "My Story Journal \u2014 ' + story.title + '"\n- 3 child-friendly prompts: (1) a DRAW prompt with a large empty drawing box (at least 200px tall, dashed border), (2) a WRITE prompt with 5 lined spaces, (3) a SHARE prompt (something to tell Dad about)\n- The key verse "' + story.verse + '" at the bottom in a decorative box\n- Large friendly fonts, lots of white space\n\nReturn ONLY the HTML content (no DOCTYPE, no body tags).';
     }
 
     if (type === 'versecard') {
-      prompt = `Create a beautiful memory verse card for "${story.verse}" from the Bible story "${story.title}" for children aged 4-7.
+      prompt = 'Create a beautiful memory verse card for "' + story.verse + '" from the Bible story "' + story.title + '" for children aged 4-7.\n\nFormat as clean HTML with inline styles. Theme: parchment (#f5edd8), gold (#b8892a), dark forest green (#1a3a1a).\nInclude:\n- A decorative cut-out card (dashed border, scissors icon \u2702\ufe0f)\n- The verse text in large, elegant font (24px+)\n- The verse reference clearly shown\n- Simple decorative elements (stars, crosses, leaves) using Unicode or simple CSS shapes\n- Instructions: "Cut out and put somewhere special!"\n- Print-friendly on one page\n\nReturn ONLY the HTML content (no DOCTYPE, no body tags).';
+    }
 
-Format as clean HTML with inline styles. Theme: parchment (#f5edd8), gold (#b8892a), dark forest green (#1a3a1a).
-Include:
-- A decorative cut-out card (dashed border, scissors icon)
-- The verse text in large, elegant font (24px+)
-- The verse reference clearly shown
-- Simple decorative elements (stars, crosses, leaves) using Unicode or simple CSS shapes
-- Instructions: "Cut out and put somewhere special!"
-- A second smaller card version to colour and decorate
-- Print-friendly on one page
-
-Return ONLY the HTML content (no DOCTYPE, no body tags).`;
+    if (type === 'tabletalk') {
+      prompt = 'Create a "Table Talk" conversation card for the Bible story "' + story.title + '" (theme: ' + story.focus + ', verse: "' + story.verse + '") for fathers and children aged 4-7.\n\nThis is a POCKET-SIZED CARD a dad can carry and use at dinner, in the car, or at bedtime to spark faith conversations with his child. It must be quick, warm, and feel natural \u2014 not like homework.\n\nFormat as clean print-friendly HTML with inline styles. Design: warm parchment (#f5edd8), gold accents (#b8892a), dark brown text (#1a1209).\n\nInclude:\n1. A bold header: "Table Talk \u2014 ' + story.title + '"\n2. A subtle subheader: "For the car. The dinner table. The bedtime chat."\n3. THREE conversation questions \u2014 each one simple enough for a 4-year-old to answer:\n   - Question 1: Something PERSONAL \u2014 connects the story to the child\'s own life today\n   - Question 2: Something IMAGINATIVE \u2014 "what would you do if..." or "which part surprised you most?"\n   - Question 3: Something PRAYERFUL \u2014 leads naturally into a short prayer together\n4. A short PRAYER STARTER at the bottom (2 sentences max, written for Dad to read aloud)\n5. The key verse "' + story.verse + '" in small italic text at the very bottom\n6. A dashed cut-out border with scissors icon \u2702\ufe0f so Dad can cut it out and keep it in his wallet\n\nDesign it to fit on a single card (max 400px wide, any height). Make it feel warm, personal, and genuinely useful.\n\nReturn ONLY the HTML content (no DOCTYPE, no body tags).';
     }
 
     if (type === 'all') {
-      prompt = `Create a COMPLETE activity workbook for the Bible story "${story.title}" (focus: ${story.focus}, verse: "${story.verse}") for children aged 4-7.
-
-Format as clean print-friendly HTML with inline styles. Theme: parchment (#f5edd8), gold (#b8892a), dark brown (#1a1209).
-
-Include ALL of these sections separated by page-break-after:always style divs:
-
-1. COLOURING PAGE: A large SVG (600x600) showing a key scene. All fills white/none, bold outlines (stroke-width:2-4), clear character and background. Title banner at top.
-
-2. FILL IN THE BLANK: 6 sentences with key words blanked. Answer key at bottom.
-
-3. WORD SEARCH: 12x12 grid with 10 hidden words. Word list below.
-
-4. REFLECTION JOURNAL: Draw box, write lines, share prompt. Verse at bottom.
-
-5. MEMORY VERSE CARD: Decorative cut-out card with the verse in large text.
-
-Return ONLY the HTML content (no DOCTYPE, no body tags, just inner content). Make it high quality and beautiful.`;
+      prompt = 'Create a COMPLETE activity pack for the Bible story "' + story.title + '" (focus: ' + story.focus + ', verse: "' + story.verse + '") for fathers and children aged 4-7.\n\nFormat as clean print-friendly HTML with inline styles. Theme: parchment (#f5edd8), gold (#b8892a), dark brown (#1a1209).\n\nInclude ALL 5 sections, each in a div with style="page-break-after:always; margin-bottom:2rem":\n\n1. TABLE TALK CARD: Pocket-sized card with dashed cut-out border (\u2702\ufe0f). Bold header "Table Talk \u2014 ' + story.title + '", subheader "For the car. The dinner table. The bedtime chat.", 3 warm conversation questions (personal, imaginative, prayerful), 2-sentence prayer starter, verse in small italic.\n\n2. FILL IN THE BLANK: 6 story sentences with one key word blanked as ___________. Answer key at bottom.\n\n3. WORD SEARCH: 12x12 HTML table with 10 hidden words. Word list below grid.\n\n4. REFLECTION JOURNAL: Draw box (200px tall, dashed border), 5 writing lines, 1 share prompt. Verse at bottom.\n\n5. MEMORY VERSE CARD: Decorative cut-out card with the verse large and centred. Decorating instructions for child.\n\nReturn ONLY the HTML content (no DOCTYPE, no body tags). Make it beautiful and print-ready.';
     }
 
-    const response = await fetch("/api/claude", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+    const response = await fetch('/api/claude', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: type === 'coloring' ? 8000 : type === 'all' ? 8000 : 4000,
-        messages: [{ role: "user", content: prompt }]
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: type === 'all' ? 8000 : 4000,
+        messages: [{ role: 'user', content: prompt }]
       })
     });
     const data = await response.json();
     if (!data.content || !data.content[0]) throw new Error('No content returned');
-    let html = data.content[0].text.replace(/```html|```|```svg/g, '').trim();
+    const html = data.content[0].text.replace(/```html|```/g, '').trim();
     const watermark = buildWatermark(story);
-
-    // Wrap SVG coloring pages in a print-friendly container
-    if (type === 'coloring' && html.startsWith('<svg')) {
-      html = `<div style="text-align:center;padding:1rem;font-family:'Crimson Pro',serif;">
-        <h2 style="color:#b8892a;font-family:'Playfair Display',serif;margin-bottom:0.5rem">${story.title}</h2>
-        <p style="color:#5a4030;font-size:0.9rem;margin-bottom:1rem">Colour this picture while Dad reads the story!</p>
-        ${html}
-        <p style="color:#5a4030;font-size:0.8rem;margin-top:0.5rem;font-style:italic">${story.verse}</p>
-      </div>`;
-    }
-
-    body.innerHTML = `<div style="font-family:'Crimson Pro',serif;background:#f5edd8;min-height:100%;" id="printable-workbook">${html}${watermark}</div>`;
+    body.innerHTML = '<div style="font-family:\'Crimson Pro\',serif;background:#f5edd8;min-height:100%;" id="printable-workbook">' + html + watermark + '</div>';
 
   } catch (e) {
-    body.innerHTML = `<p style="color:var(--rust);padding:2rem">Unable to generate workbook. Please try again.</p>`;
+    body.innerHTML = '<p style="color:var(--rust);padding:2rem">Unable to generate workbook. Please try again.</p>';
   }
 }
-
-
 
 // ─── WATERMARKING ─────────────────────────────────────────────────
 function buildWatermark(story) {
