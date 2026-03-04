@@ -4119,23 +4119,35 @@ async function generateWorkbookForStory(story, type) {
     let prompt = '';
 
     if (type === 'coloring' || type === 'all') {
-      prompt += `Create a HIGH QUALITY SVG colouring page for children aged 4-7 based on the Bible story "${story.title}".
+      prompt += `You are an expert children's book illustrator creating a printable colouring page for ages 4-7.
 
-The SVG must be 600x750 pixels and show a detailed, charming scene from the story. Requirements:
-- ALL shapes must have fill="white" or fill="none" with stroke="#1a1209" stroke-width="2" to create clear colouring outlines
-- Include a MAIN CHARACTER that is recognisable (e.g. a person, animal, or figure relevant to "${story.title}")
-- Include BACKGROUND ELEMENTS: sky, ground, hills, trees, rocks, water, clouds — whatever fits the story setting
-- Include FOREGROUND DETAILS: plants, rocks, animals, objects from the story
-- Add a TITLE BANNER at the top: "${story.title}" in a decorative font style using SVG text
-- Add a simple DECORATIVE BORDER around the whole image
-- Make outlines BOLD and CLEAR — stroke-width between 2 and 4 — so a child can colour between the lines easily
-- NO fills other than white or none — this is a COLOURING PAGE
-- NO grey fills, NO coloured fills, NO gradients
-- The scene should tell the story visually so a child understands what happened
+Create a DETAILED SVG colouring page (600x750px) for the Bible story: "${story.title}"
+Characters: ${story.character} | Theme: ${story.focus}
 
-Return ONLY a complete <svg> element with all content inside it. No HTML wrapper, no explanation.`;
+CRITICAL RULES:
+1. ALL shapes: fill="white" stroke="#1a1209" stroke-width="2.5" — NO coloured fills
+2. Use COMPLEX SVG paths with bezier curves — NOT simple circles/rectangles
+3. Human figures: ellipse head, curved torso path, leg paths, arm paths, clothing fold lines
+4. Trees: curved trunk path, detailed multi-lobe leaf cluster paths (not a circle)
+5. Animals: body path, head, legs, tail — clearly recognisable
+6. Clouds: multiple overlapping ellipses forming natural cloud shapes
+7. Ground: gently curved horizontal path across lower third
+8. Use <path d="M...C...S...Q..."> bezier curves for ALL organic shapes
+9. Minimum 30 distinct SVG elements for a rich detailed scene
+10. Characters should be 120-160px tall and prominently featured
+
+LAYOUT (600x750px):
+- y 0-160: Sky — detailed sun or moon, clouds, birds if appropriate
+- y 160-380: Background — landscape elements specific to "${story.title}" (hills, buildings, water, desert, garden etc)
+- y 320-580: MAIN SCENE — ${story.character} in the key story moment, large and detailed, with story objects
+- y 550-700: Foreground — grass tufts, rocks, flowers, animals, story props
+- y 700-730: Title banner rect with text "${story.title}"
+- Full border: decorative rect or path frame
+
+Draw the single most iconic moment from "${story.title}". Make characters expressive with body language. Include at least 4 story-specific props a child would recognise.
+
+Return ONLY the raw SVG: <svg width="600" height="750" xmlns="http://www.w3.org/2000/svg">...</svg>`;
     }
-
     if (type === 'fillblank') {
       prompt = `Create a fill-in-the-blank activity for the Bible story "${story.title}" (key verse: ${story.verse}) for children aged 4-7.
 
@@ -4221,7 +4233,7 @@ Return ONLY the HTML content (no DOCTYPE, no body tags, just inner content). Mak
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         model: "claude-sonnet-4-20250514",
-        max_tokens: 4000,
+        max_tokens: type === 'coloring' ? 8000 : type === 'all' ? 8000 : 4000,
         messages: [{ role: "user", content: prompt }]
       })
     });
