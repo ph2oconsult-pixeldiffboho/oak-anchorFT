@@ -4110,7 +4110,7 @@ async function generateWorkbookForStory(story, type) {
     let prompt = '';
 
     if (type === 'fillblank') {
-      prompt = 'Create a fill-in-the-blank activity for the Bible story "' + story.title + '" (key verse: ' + story.verse + ') for children aged 4-7.\n\nFormat as clean HTML with inline styles. Theme: parchment background (#f5edd8), gold headings (#b8892a), dark brown text (#1a1209).\nInclude:\n- A decorative title "Fill in the Blanks \u2014 ' + story.title + '"\n- 6 sentences from the story with ONE key word blanked out as ___________\n- Each sentence on its own line with a number\n- An "Answers" section at the bottom (smaller text, clearly separated)\n- Print-friendly layout, large font (18px minimum)\n\nReturn ONLY the HTML content (no DOCTYPE, no body tags).';
+      prompt = 'HTML fill-in-the-blank for Bible story "' + story.title + '" (verse: ' + story.verse + '), ages 4-7. Inline styles, parchment bg #f5edd8, gold #b8892a, brown #1a1209. Title "Fill in the Blanks — ' + story.title + '", 6 numbered sentences with one word blanked as ___, answers section below, font 18px+. Return HTML only, no DOCTYPE/body.';
     }
 
     if (type === 'wordsearch') {
@@ -4121,7 +4121,7 @@ async function generateWorkbookForStory(story, type) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
+          model: 'claude-haiku-4-5-20251001',
           max_tokens: 100,
           messages: [{ role: 'user', content: wsWordPrompt }]
         })
@@ -4204,7 +4204,7 @@ async function generateWorkbookForStory(story, type) {
     }
 
     if (type === 'journal') {
-      prompt = 'Create a reflection journal page for the Bible story "' + story.title + '" for children aged 4-7.\n\nFormat as clean HTML with inline styles. Theme: parchment (#f5edd8), gold (#b8892a).\nInclude:\n- Decorative title "My Story Journal \u2014 ' + story.title + '"\n- 3 child-friendly prompts: (1) a DRAW prompt with a large empty drawing box (at least 200px tall, dashed border), (2) a WRITE prompt with 5 lined spaces, (3) a SHARE prompt (something to tell Dad about)\n- The key verse "' + story.verse + '" at the bottom in a decorative box\n- Large friendly fonts, lots of white space\n\nReturn ONLY the HTML content (no DOCTYPE, no body tags).';
+      prompt = 'HTML journal page for Bible story "' + story.title + '", ages 4-7. Inline styles, parchment #f5edd8, gold #b8892a. Title "My Story Journal — ' + story.title + '". 3 prompts: (1) DRAW with 200px+ dashed box, (2) WRITE with 5 lined spaces, (3) SHARE with Dad. Verse "' + story.verse + '" in decorative box at bottom. Large fonts, white space. Return HTML only, no DOCTYPE/body.';
     }
 
     if (type === 'versecard') {
@@ -4223,8 +4223,8 @@ async function generateWorkbookForStory(story, type) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: type === 'all' ? 8000 : 4000,
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: type === 'all' ? 2500 : 900,
         messages: [{ role: 'user', content: prompt }]
       })
     });
