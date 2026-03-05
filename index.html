@@ -2289,9 +2289,6 @@ body.kid-mode .kid-mode-banner { display: block; }
         <input type="checkbox" checked id="wps-fillblank"> ✏️ Fill-in-the-Blank
       </label>
       <label class="wps-option">
-        <input type="checkbox" checked id="wps-wordsearch"> 🔍 Word Search
-      </label>
-      <label class="wps-option">
         <input type="checkbox" checked id="wps-journal"> 📝 Reflection Journal
       </label>
       <label class="wps-option">
@@ -2310,10 +2307,10 @@ body.kid-mode .kid-mode-banner { display: block; }
       <button class="btn btn-primary" onclick="generateWorkbook('fillblank')">Create & Print</button>
     </div>
     <div class="workbook-card">
-      <div class="workbook-icon">🔍</div>
-      <h3>Word Search</h3>
-      <p>10–12 key words from the story hidden in a grid. Great for older children (5–7).</p>
-      <button class="btn btn-primary" onclick="generateWorkbook('wordsearch')">Create & Print</button>
+      <div class="workbook-icon">✍️</div>
+      <h3>Scripture Copywork</h3>
+      <p>The key verse written large for children to trace or copy. Builds memory and handwriting.</p>
+      <button class="btn btn-primary" onclick="generateWorkbook('copywork')">Create & Print</button>
     </div>
     <div class="workbook-card">
       <div class="workbook-icon">📝</div>
@@ -4145,100 +4142,14 @@ async function generateWorkbookForStory(story, type) {
       prompt = 'HTML fill-in-the-blank for Bible story "' + story.title + '" (verse: ' + story.verse + '), ages 4-7. Inline styles, parchment bg #f5edd8, gold #b8892a, brown #1a1209. Title "Fill in the Blanks — ' + story.title + '", 6 numbered sentences with one word blanked as ___, answers section below, font 18px+. Return HTML only, no DOCTYPE/body.';
     }
 
-    if (type === 'wordsearch') {
-      try {
-        // Extract words from story data
-        var rawWords = (story.title + ' ' + story.character + ' ' + story.focus + ' ' + story.verse)
-          .toUpperCase().replace(/[^A-Z ]/g, ' ').split(' ')
-          .filter(function(w) { return w.length >= 3 && w.length <= 9; });
-        var stopWords = {'THE':1,'AND':1,'FOR':1,'HIS':1,'HER':1,'WAS':1,'ARE':1,'HAD':1,'BUT':1,'NOT':1,'YOU':1,'ALL':1,'CAN':1,'GOD':1,'OUR':1,'THAT':1,'WITH':1,'FROM':1,'HAVE':1,'THIS':1,'WILL':1,'YOUR':1,'THEY':1,'INTO':1,'BEEN':1,'WHEN':1,'WERE':1,'SAID':1};
-        var seen = {}; var words = [];
-        for (var si=0;si<rawWords.length&&words.length<8;si++) {
-          var sw=rawWords[si];
-          if (sw&&!stopWords[sw]&&!seen[sw]){seen[sw]=1;words.push(sw);}
-        }
-        var fallbacks=['FAITH','GRACE','PRAY','LOVE','HOPE','HOLY','LORD','WORD','LIGHT','TRUTH'];
-        for (var fi=0;fi<fallbacks.length&&words.length<8;fi++) {
-          if (!seen[fallbacks[fi]]){seen[fallbacks[fi]]=1;words.push(fallbacks[fi]);}
-        }
-
-        // Build grid
-        var result = buildWordGrid(words);
-        var grid = result.grid; var placed = result.placed; var GS = result.size;
-
-        // Use DOM manipulation instead of innerHTML to avoid browser parser issues
-        body.innerHTML = '';
-
-        // Wrapper
-        var wrap = document.createElement('div');
-        wrap.style.cssText = 'background:#f5edd8;padding:1rem;font-family:Georgia,serif;width:100%;box-sizing:border-box;';
-
-        // Title
-        var title = document.createElement('p');
-        title.style.cssText = 'text-align:center;color:#b8892a;font-size:1.4rem;font-weight:700;margin:0 0 0.25rem;';
-        title.textContent = 'Word Search';
-        wrap.appendChild(title);
-
-        // Subtitle
-        var sub = document.createElement('p');
-        sub.style.cssText = 'text-align:center;color:#5a4030;font-size:0.85rem;font-style:italic;margin:0 0 1rem;';
-        sub.textContent = story.title;
-        wrap.appendChild(sub);
-
-        // Grid container
-        var gridWrap = document.createElement('div');
-        gridWrap.style.cssText = 'text-align:center;overflow-x:auto;margin-bottom:1rem;';
-        var gridDiv = document.createElement('div');
-        gridDiv.style.cssText = 'display:inline-block;border:2px solid #b8892a;';
-        for (var gr=0;gr<GS;gr++) {
-          var rowDiv = document.createElement('div');
-          rowDiv.style.cssText = 'display:block;white-space:nowrap;';
-          for (var gc=0;gc<GS;gc++) {
-            var cell = document.createElement('span');
-            cell.style.cssText = 'display:inline-block;width:26px;height:26px;line-height:26px;text-align:center;font-weight:700;font-size:13px;font-family:monospace;border:1px solid #c8a850;color:#1a1209;background:#faf6ef;margin:-1px 0 0 -1px;';
-            cell.textContent = grid[gr][gc];
-            rowDiv.appendChild(cell);
-          }
-          gridDiv.appendChild(rowDiv);
-        }
-        gridWrap.appendChild(gridDiv);
-        wrap.appendChild(gridWrap);
-
-        // Word list
-        var wordBox = document.createElement('div');
-        wordBox.style.cssText = 'background:rgba(184,137,42,0.1);border-radius:4px;padding:0.75rem;text-align:center;margin-bottom:1rem;';
-        var wLabel = document.createElement('p');
-        wLabel.style.cssText = 'color:#b8892a;font-weight:700;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 0.5rem;';
-        wLabel.textContent = 'Find these ' + placed.length + ' words';
-        wordBox.appendChild(wLabel);
-        var chipsDiv = document.createElement('div');
-        chipsDiv.style.cssText = 'line-height:2.2;';
-        for (var pi=0;pi<placed.length;pi++) {
-          var chip = document.createElement('span');
-          chip.style.cssText = 'display:inline-block;font-weight:700;font-family:monospace;font-size:12px;letter-spacing:1px;color:#1a1209;padding:3px 8px;border:1px solid #b8892a;border-radius:3px;background:#fff;margin:2px;';
-          chip.textContent = placed[pi];
-          chipsDiv.appendChild(chip);
-        }
-        wordBox.appendChild(chipsDiv);
-        var hint = document.createElement('p');
-        hint.style.cssText = 'color:#9a8060;font-size:0.72rem;font-style:italic;margin:0.5rem 0 0;';
-        hint.textContent = 'Words go across → or down ↓';
-        wordBox.appendChild(hint);
-        wrap.appendChild(wordBox);
-        body.appendChild(wrap);
-
-        // Watermark — appended to body AFTER wrap, completely separate
-        var year = new Date().getFullYear();
-        var wm = document.createElement('div');
-        wm.style.cssText = 'margin-top:0.5rem;padding:0.5rem 1rem;border-top:1.5px solid #b8892a;background:#f5edd8;font-family:Georgia,serif;font-size:0.68rem;color:#7a6040;';
-        wm.innerHTML = '<strong style="color:#b8892a;">&#9875; Anchor &amp; Oak &mdash; The Father&apos;s Table</strong> &middot; anchorandoak.com.au &middot; ' + story.title + ' &middot; Month ' + story.month + '<br>&copy; ' + year + ' Anchor &amp; Oak &middot; Personal &amp; family use only &middot; <em style="color:#b8892a;">Church or group use? Email hello@anchorandoak.com.au for licensing.</em>';
-        body.appendChild(wm);
-
-      } catch(wsErr) {
-        console.error('Word search error:', wsErr);
-        body.innerHTML = '<div style="padding:2rem;text-align:center;font-family:Georgia,serif;"><p style="color:#c0392b;">Word search error: ' + wsErr.message + '</p></div>';
-      }
-      return;
+    if (type === 'wordsearch' || type === 'copywork') {
+      prompt = 'Create a Scripture copywork page for children aged 4-7 based on the Bible story "' + story.title + '". ' +
+        'Key verse: "' + story.verse + '". ' +
+        'Inline styles only. Parchment bg #f5edd8, gold #b8892a, brown #1a1209. ' +
+        'Include: decorative title "Scripture Copywork", the verse printed in large text (22px) for children to read, ' +
+        'then 3 lines with the verse printed lightly (color:#d4c4a0) for tracing, ' +
+        'then 3 blank dotted lines for children to copy themselves. ' +
+        'Large friendly layout, lots of white space, print-friendly. Return HTML only, no DOCTYPE/body.';
     }
 
     if (type === 'journal') {
@@ -4315,7 +4226,7 @@ function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
 
   const swCode = `
-const CACHE = 'fathers-table-v12';
+const CACHE = 'fathers-table-v13';
 const OFFLINE_URL = self.location.href;
 
 self.addEventListener('install', e => {
