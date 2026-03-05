@@ -4115,7 +4115,7 @@ async function generateWorkbookForStory(story, type) {
 
     if (type === 'wordsearch') {
       try {
-        var wsWordPrompt = 'List exactly 8 key words from the Bible story "' + story.title + '". Each word 3-8 letters, uppercase, no spaces. Return ONLY a JSON array like ["WORD","WORD"]. Nothing else.';
+        var wsWordPrompt = 'List exactly 8 key words from the Bible story "' + story.title + '". Each word 3-8 letters, uppercase, no spaces. Return ONLY a JSON array. Example: ["GOD","LIGHT","WATER","EARTH","STARS","FISH","TREE","GOOD"]. Nothing else.';
         var wsResp = await fetch('/api/claude', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -4125,14 +4125,17 @@ async function generateWorkbookForStory(story, type) {
             messages: [{ role: 'user', content: wsWordPrompt }]
           })
         });
+        if (!wsResp.ok) throw new Error('API error ' + wsResp.status);
         var wsData = await wsResp.json();
-        var rawText = wsData.content[0].text.trim().replace(/```json|```/g, '').trim();
+        if (!wsData.content || !wsData.content[0]) throw new Error('No response from API');
+        var rawText = wsData.content[0].text.trim().replace(/```[a-z]*/g, '').replace(/```/g, '').trim();
         var words = JSON.parse(rawText);
         words = words.map(function(w) { return String(w).toUpperCase().replace(/[^A-Z]/g, ''); })
                      .filter(function(w) { return w.length >= 3 && w.length <= 10; })
                      .slice(0, 8);
+        if (words.length < 3) throw new Error('Not enough valid words returned');
 
-        // Build 14x14 grid
+        // Build 14x14 grid entirely in JS
         var GS = 14;
         var grid = [];
         for (var ri = 0; ri < GS; ri++) {
@@ -4167,46 +4170,46 @@ async function generateWorkbookForStory(story, type) {
         words.sort(function(a, b) { return b.length - a.length; });
         for (var wi = 0; wi < words.length; wi++) placeWord(words[wi]);
 
-        // Fill empty cells
+        // Fill empty cells with random letters
         var alpha = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
         for (var fr = 0; fr < GS; fr++)
           for (var fc = 0; fc < GS; fc++)
             if (grid[fr][fc] === '') grid[fr][fc] = alpha[Math.floor(Math.random() * 26)];
 
-        // Build table
-        var cs = 'width:30px;height:30px;text-align:center;vertical-align:middle;font-weight:700;font-size:14px;font-family:monospace;border:1px solid #c8a850;color:#1a1209;background:#faf6ef;';
-        var tbl = '<table style="border-collapse:collapse;margin:0 auto;border:2px solid #b8892a;">';
-        for (var tr = 0; tr < GS; tr++) {
+        // Build table HTML
+        var cs = 'width:28px;height:28px;text-align:center;vertical-align:middle;font-weight:700;font-size:13px;font-family:monospace;border:1px solid #c8a850;color:#1a1209;background:#faf6ef;';
+        var tbl = '<table style="border-collapse:collapse;margin-left:auto;margin-right:auto;">';
+        for (var tr2 = 0; tr2 < GS; tr2++) {
           tbl += '<tr>';
-          for (var tc = 0; tc < GS; tc++) tbl += '<td style="' + cs + '">' + grid[tr][tc] + '</td>';
+          for (var tc2 = 0; tc2 < GS; tc2++) tbl += '<td style="' + cs + '">' + grid[tr2][tc2] + '</td>';
           tbl += '</tr>';
         }
         tbl += '</table>';
 
         // Word chips
         var chips = placed.map(function(w) {
-          return '<span style="display:inline-block;font-weight:700;font-family:monospace;font-size:13px;letter-spacing:2px;color:#1a1209;padding:4px 10px;border:1.5px solid #b8892a;border-radius:4px;background:#fff;margin:3px;">' + w + '</span>';
-        }).join('');
+          return '<span style="display:inline-block;font-weight:700;font-family:monospace;font-size:12px;letter-spacing:1px;color:#1a1209;padding:3px 8px;border:1px solid #b8892a;border-radius:3px;background:#fff;">' + w + '</span>';
+        }).join(' ');
 
         var wm = buildWatermark(story);
-        var h2style = 'color:#b8892a;font-size:1.5rem;margin:0 0 0.3rem;';
+
+        // Use a simple table-based layout for maximum compatibility
         body.innerHTML =
-          '<div id="printable-workbook" style="background:#f5edd8;padding:1.5rem 1rem;font-family:Georgia,serif;">' +
-            '<div style="text-align:center;margin-bottom:1.25rem;">' +
-              '<h2 style="' + h2style + '">Word Search</h2>' +
-              '<p style="color:#5a4030;font-size:0.9rem;margin:0;font-style:italic;">' + story.title + '</p>' +
+          '<div style="background:#f5edd8;width:100%;box-sizing:border-box;padding:1rem;">' +
+            '<p style="text-align:center;color:#b8892a;font-size:1.4rem;font-weight:700;font-family:Georgia,serif;margin:0 0 0.25rem;">Word Search</p>' +
+            '<p style="text-align:center;color:#5a4030;font-size:0.85rem;font-style:italic;margin:0 0 1rem;">' + story.title + '</p>' +
+            '<div style="width:100%;overflow-x:auto;margin-bottom:1rem;">' + tbl + '</div>' +
+            '<div style="background:rgba(184,137,42,0.1);border-radius:4px;padding:0.75rem;text-align:center;margin-bottom:1rem;">' +
+              '<p style="color:#b8892a;font-weight:700;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 0.4rem;">Find these ' + placed.length + ' words</p>' +
+              '<div style="line-height:2;">' + chips + '</div>' +
+              '<p style="color:#9a8060;font-size:0.72rem;font-style:italic;margin:0.4rem 0 0;">Words go across → or down ↓</p>' +
             '</div>' +
-            '<div style="overflow-x:auto;text-align:center;margin-bottom:1.25rem;">' + tbl + '</div>' +
-            '<div style="text-align:center;padding:0.75rem;background:rgba(184,137,42,0.08);border-radius:6px;margin-bottom:0.5rem;">' +
-              '<p style="color:#b8892a;font-weight:700;font-size:0.85rem;margin:0 0 0.5rem;letter-spacing:0.05em;text-transform:uppercase;">Find these ' + placed.length + ' words</p>' +
-              '<div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;">' + chips + '</div>' +
-              '<p style="color:#9a8060;font-size:0.75rem;margin:0.6rem 0 0;font-style:italic;">Words go across → or down ↓</p>' +
-            '</div>' +
-          '</div>' +
-          '<div>' + wm + '</div>';
+            wm +
+          '</div>';
 
       } catch(wsErr) {
-        body.innerHTML = '<div class="story-content"><p style="color:red;padding:1rem;">Word search error: ' + wsErr.message + '</p></div>';
+        console.error('Word search error:', wsErr);
+        body.innerHTML = '<div style="padding:2rem;text-align:center;"><p style="color:#c0392b;margin-bottom:1rem;font-family:Georgia,serif;">Word search error: ' + wsErr.message + '</p><p style="color:#7a6040;font-size:0.9rem;">Please close and try again.</p></div>';
       }
       return;
     }
@@ -4243,7 +4246,8 @@ async function generateWorkbookForStory(story, type) {
     body.innerHTML = '<div style="font-family:\'Crimson Pro\',serif;background:#f5edd8;min-height:100%;" id="printable-workbook">' + html + watermark + '</div>';
 
   } catch (e) {
-    body.innerHTML = '<p style="color:var(--rust);padding:2rem">Unable to generate workbook. Please try again.</p>';
+    console.error('Workbook error:', e);
+    body.innerHTML = '<div style="padding:2rem;text-align:center;"><p style="color:var(--rust);margin-bottom:1rem;">Unable to generate workbook: ' + e.message + '</p><button onclick="generateWorkbook(currentWorkbookType)" style="background:#b8892a;color:#fff;border:none;padding:0.75rem 1.5rem;border-radius:4px;cursor:pointer;font-size:1rem;">Try Again</button></div>';
   }
 }
 
@@ -4284,7 +4288,7 @@ function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
 
   const swCode = `
-const CACHE = 'fathers-table-v7';
+const CACHE = 'fathers-table-v8';
 const OFFLINE_URL = self.location.href;
 
 self.addEventListener('install', e => {
