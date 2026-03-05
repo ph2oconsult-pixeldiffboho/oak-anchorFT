@@ -4115,8 +4115,8 @@ async function generateWorkbookForStory(story, type) {
 
     if (type === 'wordsearch') {
       try {
-        const wsWordPrompt = 'List exactly 8 key words from the Bible story "' + story.title + '". Each word 3-8 letters, uppercase, no spaces. Return ONLY a JSON array like ["WORD","WORD"]. Nothing else.';
-        const wsResp = await fetch('/api/claude', {
+        var wsWordPrompt = 'List exactly 8 key words from the Bible story "' + story.title + '". Each word 3-8 letters, uppercase, no spaces. Return ONLY a JSON array like ["WORD","WORD"]. Nothing else.';
+        var wsResp = await fetch('/api/claude', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -4125,23 +4125,24 @@ async function generateWorkbookForStory(story, type) {
             messages: [{ role: 'user', content: wsWordPrompt }]
           })
         });
-        const wsData = await wsResp.json();
-        let rawText = wsData.content[0].text.trim();
-        // Strip any markdown fences
-        rawText = rawText.replace(/```json|```/g, '').trim();
-        let words = JSON.parse(rawText);
+        var wsData = await wsResp.json();
+        var rawText = wsData.content[0].text.trim().replace(/```json|```/g, '').trim();
+        var words = JSON.parse(rawText);
         words = words.map(function(w) { return String(w).toUpperCase().replace(/[^A-Z]/g, ''); })
                      .filter(function(w) { return w.length >= 3 && w.length <= 10; })
                      .slice(0, 8);
 
-        // Build grid in JS - no AI involvement
+        // Build 14x14 grid
         var GS = 14;
         var grid = [];
-        for (var ri = 0; ri < GS; ri++) { grid.push([]); for (var ci = 0; ci < GS; ci++) grid[ri].push(''); }
+        for (var ri = 0; ri < GS; ri++) {
+          grid[ri] = [];
+          for (var ci = 0; ci < GS; ci++) grid[ri][ci] = '';
+        }
         var placed = [];
 
         function placeWord(word) {
-          for (var attempt = 0; attempt < 300; attempt++) {
+          for (var att = 0; att < 400; att++) {
             var horiz = Math.random() > 0.5;
             var row = Math.floor(Math.random() * (horiz ? GS : GS - word.length));
             var col = Math.floor(Math.random() * (horiz ? GS - word.length : GS));
@@ -4164,41 +4165,48 @@ async function generateWorkbookForStory(story, type) {
         }
 
         words.sort(function(a, b) { return b.length - a.length; });
-        words.forEach(function(w) { placeWord(w); });
+        for (var wi = 0; wi < words.length; wi++) placeWord(words[wi]);
 
+        // Fill empty cells
         var alpha = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
         for (var fr = 0; fr < GS; fr++)
           for (var fc = 0; fc < GS; fc++)
             if (grid[fr][fc] === '') grid[fr][fc] = alpha[Math.floor(Math.random() * 26)];
 
-        var cell = 'width:26px;height:26px;text-align:center;vertical-align:middle;font-weight:bold;font-size:13px;font-family:monospace;border:1px solid #c8a850;color:#1a1209;';
-        var tbl = '<table style="border-collapse:collapse;margin:0 auto;">';
+        // Build table
+        var cs = 'width:30px;height:30px;text-align:center;vertical-align:middle;font-weight:700;font-size:14px;font-family:monospace;border:1px solid #c8a850;color:#1a1209;background:#faf6ef;';
+        var tbl = '<table style="border-collapse:collapse;margin:0 auto;border:2px solid #b8892a;">';
         for (var tr = 0; tr < GS; tr++) {
           tbl += '<tr>';
-          for (var tc = 0; tc < GS; tc++) tbl += '<td style="' + cell + '">' + grid[tr][tc] + '</td>';
+          for (var tc = 0; tc < GS; tc++) tbl += '<td style="' + cs + '">' + grid[tr][tc] + '</td>';
           tbl += '</tr>';
         }
         tbl += '</table>';
 
-        var wordSpans = placed.map(function(w) {
-          return '<span style="font-weight:bold;font-family:monospace;font-size:13px;letter-spacing:2px;color:#1a1209;padding:3px 8px;border:1px solid #c8a850;border-radius:3px;">' + w + '</span>';
+        // Word chips
+        var chips = placed.map(function(w) {
+          return '<span style="display:inline-block;font-weight:700;font-family:monospace;font-size:13px;letter-spacing:2px;color:#1a1209;padding:4px 10px;border:1.5px solid #b8892a;border-radius:4px;background:#fff;margin:3px;">' + w + '</span>';
         }).join('');
 
         var wm = buildWatermark(story);
+        var h2style = 'color:#b8892a;font-size:1.5rem;margin:0 0 0.3rem;';
         body.innerHTML =
-          '<div id="printable-workbook" style="background:#f5edd8;padding:1.5rem 1rem;text-align:center;font-family:Georgia,serif;">' +
-            '<h2 style="color:#b8892a;font-size:1.4rem;margin:0 0 0.25rem;">Word Search</h2>' +
-            '<p style="color:#5a4030;font-size:0.9rem;margin:0 0 1rem;font-style:italic;">' + story.title + '</p>' +
-            '<div style="overflow-x:auto;">' + tbl + '</div>' +
-            '<div style="margin-top:1rem;">' +
-              '<p style="color:#b8892a;font-weight:bold;margin:0 0 0.5rem;">Find these words:</p>' +
-              '<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:420px;margin:0 auto;">' + wordSpans + '</div>' +
-              '<p style="color:#9a8060;font-size:0.75rem;margin-top:0.75rem;font-style:italic;">Words go across → or down ↓</p>' +
+          '<div id="printable-workbook" style="background:#f5edd8;padding:1.5rem 1rem;font-family:Georgia,serif;">' +
+            '<div style="text-align:center;margin-bottom:1.25rem;">' +
+              '<h2 style="' + h2style + '">Word Search</h2>' +
+              '<p style="color:#5a4030;font-size:0.9rem;margin:0;font-style:italic;">' + story.title + '</p>' +
+            '</div>' +
+            '<div style="overflow-x:auto;text-align:center;margin-bottom:1.25rem;">' + tbl + '</div>' +
+            '<div style="text-align:center;padding:0.75rem;background:rgba(184,137,42,0.08);border-radius:6px;margin-bottom:0.5rem;">' +
+              '<p style="color:#b8892a;font-weight:700;font-size:0.85rem;margin:0 0 0.5rem;letter-spacing:0.05em;text-transform:uppercase;">Find these ' + placed.length + ' words</p>' +
+              '<div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;">' + chips + '</div>' +
+              '<p style="color:#9a8060;font-size:0.75rem;margin:0.6rem 0 0;font-style:italic;">Words go across → or down ↓</p>' +
             '</div>' +
           '</div>' +
-          '<div style="margin-top:1rem;">' + wm + '</div>';
+          '<div>' + wm + '</div>';
+
       } catch(wsErr) {
-        body.innerHTML = '<div class="story-content"><p style="color:red;">Word search failed: ' + wsErr.message + '. Please try again.</p></div>';
+        body.innerHTML = '<div class="story-content"><p style="color:red;padding:1rem;">Word search error: ' + wsErr.message + '</p></div>';
       }
       return;
     }
@@ -4304,7 +4312,7 @@ function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
 
   const swCode = `
-const CACHE = 'fathers-table-v5';
+const CACHE = 'fathers-table-v6';
 const OFFLINE_URL = self.location.href;
 
 self.addEventListener('install', e => {
