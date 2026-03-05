@@ -4162,48 +4162,77 @@ async function generateWorkbookForStory(story, type) {
           if (!seen[fallbacks[fi]]){seen[fallbacks[fi]]=1;words.push(fallbacks[fi]);}
         }
 
-        // Build grid using top-level function (no redeclaration issues)
+        // Build grid
         var result = buildWordGrid(words);
-        var grid = result.grid;
-        var placed = result.placed;
-        var GS = result.size;
+        var grid = result.grid; var placed = result.placed; var GS = result.size;
 
-        // Build grid HTML using spans
-        var cellStyle = 'display:inline-block;width:26px;height:26px;line-height:26px;text-align:center;font-weight:700;font-size:13px;font-family:monospace;border:1px solid #c8a850;color:#1a1209;background:#faf6ef;margin:-1px 0 0 -1px;';
-        var gridHtml = '<div style="display:inline-block;border:2px solid #b8892a;">';
+        // Use DOM manipulation instead of innerHTML to avoid browser parser issues
+        body.innerHTML = '';
+
+        // Wrapper
+        var wrap = document.createElement('div');
+        wrap.style.cssText = 'background:#f5edd8;padding:1rem;font-family:Georgia,serif;width:100%;box-sizing:border-box;';
+
+        // Title
+        var title = document.createElement('p');
+        title.style.cssText = 'text-align:center;color:#b8892a;font-size:1.4rem;font-weight:700;margin:0 0 0.25rem;';
+        title.textContent = 'Word Search';
+        wrap.appendChild(title);
+
+        // Subtitle
+        var sub = document.createElement('p');
+        sub.style.cssText = 'text-align:center;color:#5a4030;font-size:0.85rem;font-style:italic;margin:0 0 1rem;';
+        sub.textContent = story.title;
+        wrap.appendChild(sub);
+
+        // Grid container
+        var gridWrap = document.createElement('div');
+        gridWrap.style.cssText = 'text-align:center;overflow-x:auto;margin-bottom:1rem;';
+        var gridDiv = document.createElement('div');
+        gridDiv.style.cssText = 'display:inline-block;border:2px solid #b8892a;';
         for (var gr=0;gr<GS;gr++) {
-          gridHtml += '<div style="display:block;white-space:nowrap;">';
-          for (var gc=0;gc<GS;gc++) gridHtml += '<span style="'+cellStyle+'">'+grid[gr][gc]+'</span>';
-          gridHtml += '</div>';
+          var rowDiv = document.createElement('div');
+          rowDiv.style.cssText = 'display:block;white-space:nowrap;';
+          for (var gc=0;gc<GS;gc++) {
+            var cell = document.createElement('span');
+            cell.style.cssText = 'display:inline-block;width:26px;height:26px;line-height:26px;text-align:center;font-weight:700;font-size:13px;font-family:monospace;border:1px solid #c8a850;color:#1a1209;background:#faf6ef;margin:-1px 0 0 -1px;';
+            cell.textContent = grid[gr][gc];
+            rowDiv.appendChild(cell);
+          }
+          gridDiv.appendChild(rowDiv);
         }
-        gridHtml += '</div>';
+        gridWrap.appendChild(gridDiv);
+        wrap.appendChild(gridWrap);
 
-        // Word chips
-        var chips = '';
+        // Word list
+        var wordBox = document.createElement('div');
+        wordBox.style.cssText = 'background:rgba(184,137,42,0.1);border-radius:4px;padding:0.75rem;text-align:center;margin-bottom:1rem;';
+        var wLabel = document.createElement('p');
+        wLabel.style.cssText = 'color:#b8892a;font-weight:700;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 0.5rem;';
+        wLabel.textContent = 'Find these ' + placed.length + ' words';
+        wordBox.appendChild(wLabel);
+        var chipsDiv = document.createElement('div');
+        chipsDiv.style.cssText = 'line-height:2.2;';
         for (var pi=0;pi<placed.length;pi++) {
-          chips += '<span style="display:inline-block;font-weight:700;font-family:monospace;font-size:12px;letter-spacing:1px;color:#1a1209;padding:3px 8px;border:1px solid #b8892a;border-radius:3px;background:#fff;margin:2px;">'+placed[pi]+'</span>';
+          var chip = document.createElement('span');
+          chip.style.cssText = 'display:inline-block;font-weight:700;font-family:monospace;font-size:12px;letter-spacing:1px;color:#1a1209;padding:3px 8px;border:1px solid #b8892a;border-radius:3px;background:#fff;margin:2px;';
+          chip.textContent = placed[pi];
+          chipsDiv.appendChild(chip);
         }
+        wordBox.appendChild(chipsDiv);
+        var hint = document.createElement('p');
+        hint.style.cssText = 'color:#9a8060;font-size:0.72rem;font-style:italic;margin:0.5rem 0 0;';
+        hint.textContent = 'Words go across → or down ↓';
+        wordBox.appendChild(hint);
+        wrap.appendChild(wordBox);
+        body.appendChild(wrap);
 
-        // Watermark
+        // Watermark — appended to body AFTER wrap, completely separate
         var year = new Date().getFullYear();
-        var wmHtml = '<div style="margin-top:1rem;padding:0.5rem 1rem;border-top:1.5px solid #b8892a;background:#f5edd8;font-family:Georgia,serif;font-size:0.68rem;color:#7a6040;">' +
-          '<strong style="color:#b8892a;">&#9875; Anchor &amp; Oak &mdash; The Father&apos;s Table</strong> &middot; anchorandoak.com.au &middot; ' + story.title + ' &middot; Month ' + story.month +
-          '<br>&copy; ' + year + ' Anchor &amp; Oak &middot; Personal &amp; family use only &middot; <em style="color:#b8892a;">Church or group use? Email hello@anchorandoak.com.au for licensing.</em>' +
-          '</div>';
-
-        var output = '';
-        output += '<div style="background:#f5edd8;padding:1rem;font-family:Georgia,serif;width:100%;box-sizing:border-box;">';
-        output += '<p style="text-align:center;color:#b8892a;font-size:1.4rem;font-weight:700;margin:0 0 0.25rem;">Word Search</p>';
-        output += '<p style="text-align:center;color:#5a4030;font-size:0.85rem;font-style:italic;margin:0 0 1rem;">'+story.title+'</p>';
-        output += '<div style="text-align:center;overflow-x:auto;margin-bottom:1rem;">'+gridHtml+'</div>';
-        output += '<div style="background:rgba(184,137,42,0.1);border-radius:4px;padding:0.75rem;text-align:center;margin-bottom:1rem;">';
-        output += '<p style="color:#b8892a;font-weight:700;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.05em;margin:0 0 0.5rem;">Find these '+placed.length+' words</p>';
-        output += '<div style="line-height:2.2;">'+chips+'</div>';
-        output += '<p style="color:#9a8060;font-size:0.72rem;font-style:italic;margin:0.5rem 0 0;">Words go across → or down ↓</p>';
-        output += '</div></div>';
-        output += wmHtml;
-
-        body.innerHTML = output;
+        var wm = document.createElement('div');
+        wm.style.cssText = 'margin-top:0.5rem;padding:0.5rem 1rem;border-top:1.5px solid #b8892a;background:#f5edd8;font-family:Georgia,serif;font-size:0.68rem;color:#7a6040;';
+        wm.innerHTML = '<strong style="color:#b8892a;">&#9875; Anchor &amp; Oak &mdash; The Father&apos;s Table</strong> &middot; anchorandoak.com.au &middot; ' + story.title + ' &middot; Month ' + story.month + '<br>&copy; ' + year + ' Anchor &amp; Oak &middot; Personal &amp; family use only &middot; <em style="color:#b8892a;">Church or group use? Email hello@anchorandoak.com.au for licensing.</em>';
+        body.appendChild(wm);
 
       } catch(wsErr) {
         console.error('Word search error:', wsErr);
@@ -4286,7 +4315,7 @@ function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
 
   const swCode = `
-const CACHE = 'fathers-table-v11';
+const CACHE = 'fathers-table-v12';
 const OFFLINE_URL = self.location.href;
 
 self.addEventListener('install', e => {
