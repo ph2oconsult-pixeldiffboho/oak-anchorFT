@@ -4114,94 +4114,93 @@ async function generateWorkbookForStory(story, type) {
     }
 
     if (type === 'wordsearch') {
-      // Step 1: Ask Claude only for the word list as JSON
-      const wsWordPrompt = 'List exactly 8 key words from the Bible story "' + story.title + '". Rules: each word 3-8 letters, all uppercase, no proper names longer than 8 letters, no spaces. Return ONLY a JSON array of 8 strings, nothing else. Example: ["FIRE","CLOUD","MOUNTAIN","STONE","PRAY","FAITH","LIGHT","WATER"]';
+      try {
+        const wsWordPrompt = 'List exactly 8 key words from the Bible story "' + story.title + '". Each word 3-8 letters, uppercase, no spaces. Return ONLY a JSON array like ["WORD","WORD"]. Nothing else.';
+        const wsResp = await fetch('/api/claude', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            model: 'claude-haiku-4-5-20251001',
+            max_tokens: 80,
+            messages: [{ role: 'user', content: wsWordPrompt }]
+          })
+        });
+        const wsData = await wsResp.json();
+        let rawText = wsData.content[0].text.trim();
+        // Strip any markdown fences
+        rawText = rawText.replace(/```json|```/g, '').trim();
+        let words = JSON.parse(rawText);
+        words = words.map(function(w) { return String(w).toUpperCase().replace(/[^A-Z]/g, ''); })
+                     .filter(function(w) { return w.length >= 3 && w.length <= 10; })
+                     .slice(0, 8);
 
-      const wsResp = await fetch('/api/claude', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 100,
-          messages: [{ role: 'user', content: wsWordPrompt }]
-        })
-      });
-      const wsData = await wsResp.json();
-      let words = JSON.parse(wsData.content[0].text.trim());
-      words = words.map(w => w.toUpperCase().replace(/[^A-Z]/g, '')).filter(w => w.length >= 3 && w.length <= 10).slice(0, 8);
+        // Build grid in JS - no AI involvement
+        var GS = 14;
+        var grid = [];
+        for (var ri = 0; ri < GS; ri++) { grid.push([]); for (var ci = 0; ci < GS; ci++) grid[ri].push(''); }
+        var placed = [];
 
-      // Step 2: Build the grid in JavaScript — guaranteed to contain all words
-      const GRID_SIZE = 14;
-      const grid = Array.from({length: GRID_SIZE}, () => Array(GRID_SIZE).fill(''));
-      const placed = [];
-
-      function tryPlace(word, attempts) {
-        for (let a = 0; a < attempts; a++) {
-          const horiz = Math.random() > 0.5;
-          const row = Math.floor(Math.random() * (horiz ? GRID_SIZE : GRID_SIZE - word.length));
-          const col = Math.floor(Math.random() * (horiz ? GRID_SIZE - word.length : GRID_SIZE));
-          let ok = true;
-          for (let i = 0; i < word.length; i++) {
-            const r = horiz ? row : row + i;
-            const c = horiz ? col + i : col;
-            if (grid[r][c] !== '' && grid[r][c] !== word[i]) { ok = false; break; }
-          }
-          if (ok) {
-            for (let i = 0; i < word.length; i++) {
-              const r = horiz ? row : row + i;
-              const c = horiz ? col + i : col;
-              grid[r][c] = word[i];
+        function placeWord(word) {
+          for (var attempt = 0; attempt < 300; attempt++) {
+            var horiz = Math.random() > 0.5;
+            var row = Math.floor(Math.random() * (horiz ? GS : GS - word.length));
+            var col = Math.floor(Math.random() * (horiz ? GS - word.length : GS));
+            var ok = true;
+            for (var li = 0; li < word.length; li++) {
+              var r = horiz ? row : row + li;
+              var c = horiz ? col + li : col;
+              if (grid[r][c] !== '' && grid[r][c] !== word[li]) { ok = false; break; }
             }
-            placed.push(word);
-            return true;
+            if (ok) {
+              for (var li2 = 0; li2 < word.length; li2++) {
+                var r2 = horiz ? row : row + li2;
+                var c2 = horiz ? col + li2 : col;
+                grid[r2][c2] = word[li2];
+              }
+              placed.push(word);
+              return;
+            }
           }
         }
-        return false;
-      }
 
-      // Place longest words first
-      words.sort((a, b) => b.length - a.length);
-      words.forEach(w => tryPlace(w, 200));
+        words.sort(function(a, b) { return b.length - a.length; });
+        words.forEach(function(w) { placeWord(w); });
 
-      // Fill blanks with random letters
-      const alpha = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-      for (let r = 0; r < GRID_SIZE; r++)
-        for (let c = 0; c < GRID_SIZE; c++)
-          if (grid[r][c] === '') grid[r][c] = alpha[Math.floor(Math.random() * 26)];
+        var alpha = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        for (var fr = 0; fr < GS; fr++)
+          for (var fc = 0; fc < GS; fc++)
+            if (grid[fr][fc] === '') grid[fr][fc] = alpha[Math.floor(Math.random() * 26)];
 
-      // Step 3: Build HTML ourselves — no AI involvement in the grid
-      const cellStyle = 'width:28px;height:28px;text-align:center;vertical-align:middle;font-weight:bold;font-size:14px;font-family:monospace;border:1px solid #c8a850;color:#1a1209;';
-      let tableHtml = '<table style="border-collapse:collapse;margin:0 auto;">';
-      for (let r = 0; r < GRID_SIZE; r++) {
-        tableHtml += '<tr>';
-        for (let c = 0; c < GRID_SIZE; c++) {
-          tableHtml += '<td style="' + cellStyle + '">' + grid[r][c] + '</td>';
+        var cell = 'width:26px;height:26px;text-align:center;vertical-align:middle;font-weight:bold;font-size:13px;font-family:monospace;border:1px solid #c8a850;color:#1a1209;';
+        var tbl = '<table style="border-collapse:collapse;margin:0 auto;">';
+        for (var tr = 0; tr < GS; tr++) {
+          tbl += '<tr>';
+          for (var tc = 0; tc < GS; tc++) tbl += '<td style="' + cell + '">' + grid[tr][tc] + '</td>';
+          tbl += '</tr>';
         }
-        tableHtml += '</tr>';
+        tbl += '</table>';
+
+        var wordSpans = placed.map(function(w) {
+          return '<span style="font-weight:bold;font-family:monospace;font-size:13px;letter-spacing:2px;color:#1a1209;padding:3px 8px;border:1px solid #c8a850;border-radius:3px;">' + w + '</span>';
+        }).join('');
+
+        var wm = buildWatermark(story);
+        body.innerHTML =
+          '<div id="printable-workbook" style="background:#f5edd8;padding:1.5rem 1rem;text-align:center;font-family:Georgia,serif;">' +
+            '<h2 style="color:#b8892a;font-size:1.4rem;margin:0 0 0.25rem;">Word Search</h2>' +
+            '<p style="color:#5a4030;font-size:0.9rem;margin:0 0 1rem;font-style:italic;">' + story.title + '</p>' +
+            '<div style="overflow-x:auto;">' + tbl + '</div>' +
+            '<div style="margin-top:1rem;">' +
+              '<p style="color:#b8892a;font-weight:bold;margin:0 0 0.5rem;">Find these words:</p>' +
+              '<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:420px;margin:0 auto;">' + wordSpans + '</div>' +
+              '<p style="color:#9a8060;font-size:0.75rem;margin-top:0.75rem;font-style:italic;">Words go across → or down ↓</p>' +
+            '</div>' +
+          '</div>' +
+          '<div style="margin-top:1rem;">' + wm + '</div>';
+      } catch(wsErr) {
+        body.innerHTML = '<div class="story-content"><p style="color:red;">Word search failed: ' + wsErr.message + '. Please try again.</p></div>';
       }
-      tableHtml += '</table>';
-
-      const wordListHtml = placed.map(w =>
-        '<span style="font-weight:bold;font-family:monospace;font-size:14px;letter-spacing:2px;color:#1a1209;padding:3px 8px;border:1px solid #c8a850;border-radius:3px;">' + w + '</span>'
-      ).join('');
-
-      const wsHtml = [
-        "<div style='display:block;width:100%;text-align:center;padding:1.5rem 1rem;font-family:Georgia,serif;box-sizing:border-box;'>",
-        "<h2 style='display:block;color:#b8892a;font-size:1.4rem;margin:0 0 0.25rem 0;'>Word Search</h2>",
-        "<p style='display:block;color:#5a4030;font-size:0.9rem;margin:0 0 1rem 0;font-style:italic;'>", story.title, "</p>",
-        "<div style='display:block;overflow-x:auto;'>", tableHtml, "</div>",
-        "<div style='display:block;margin-top:1.2rem;'>",
-        "<p style='display:block;color:#b8892a;font-weight:bold;margin:0 0 0.5rem 0;'>Find these words:</p>",
-        "<div style='display:flex;flex-wrap:wrap;gap:6px;justify-content:center;max-width:440px;margin:0 auto;'>",
-        wordListHtml,
-        "</div>",
-        "<p style='display:block;color:#9a8060;font-size:0.75rem;margin-top:0.75rem;font-style:italic;'>Words go across → or down ↓</p>",
-        "</div></div>"
-      ].join('');
-
-      const watermark = buildWatermark(story);
-      body.innerHTML = '<div style="background:#f5edd8;min-height:100%;" id="printable-workbook"><div style="display:block;width:100%;text-align:center;">' + wsHtml + '</div><div style="display:block;width:100%;margin-top:2rem;">' + watermark + '</div></div>';
-      return; // Skip the normal fetch/render path below
+      return;
     }
 
     if (type === 'journal') {
@@ -4305,7 +4304,7 @@ function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
 
   const swCode = `
-const CACHE = 'fathers-table-v4';
+const CACHE = 'fathers-table-v5';
 const OFFLINE_URL = self.location.href;
 
 self.addEventListener('install', e => {
