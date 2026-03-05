@@ -4199,7 +4199,7 @@ async function generateWorkbookForStory(story, type) {
       ].join('');
 
       const watermark = buildWatermark(story);
-      body.innerHTML = '<div style="background:#f5edd8;min-height:100%;" id="printable-workbook">' + wsHtml + watermark + '</div>';
+      body.innerHTML = '<div style="background:#f5edd8;min-height:100%;padding-bottom:4rem;" id="printable-workbook"><div style="overflow:visible;">' + wsHtml + '</div><div style="clear:both;display:block;">' + watermark + '</div></div>';
       return; // Skip the normal fetch/render path below
     }
 
