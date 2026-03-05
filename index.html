@@ -4250,40 +4250,12 @@ async function generateWorkbookForStory(story, type) {
 // ─── WATERMARKING ─────────────────────────────────────────────────
 function buildWatermark(story) {
   const year = new Date().getFullYear();
-  return `
-  <style>
-    @media print {
-      .ao-watermark {
-        position: fixed !important;
-        bottom: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-      }
-    }
-  </style>
-  <div class="ao-watermark" style="
-    margin-top: 2rem;
-    padding: 0.5rem 1rem;
-    border-top: 1.5px solid #b8892a;
-    background: #f5edd8;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 0.3rem;
-    font-family: 'Crimson Pro', Georgia, serif;
-    font-size: 0.68rem;
-    color: #7a6040;
-    letter-spacing: 0.03em;
-  ">
-    <span>⚓ <strong style="color:#b8892a">Anchor &amp; Oak — The Father's Table</strong> · anchorandoak.com.au</span>
-    <span>${story ? story.title + ' · Month ' + story.month : ''}</span>
-    <span>© ${year} Anchor &amp; Oak · Personal &amp; family use only</span>
-    <span style="font-style:italic;width:100%;text-align:center;font-size:0.63rem;color:#c0a870">Church or group use? Email hello@anchorandoak.com.au for licensing.</span>
-  </div>`;
+  return '<div style="margin-top:1.5rem;padding:0.5rem 1rem;border-top:1.5px solid #b8892a;background:#f5edd8;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.3rem;font-family:Georgia,serif;font-size:0.68rem;color:#7a6040;letter-spacing:0.03em;">' +
+    '<span>⚓ <strong style="color:#b8892a">Anchor &amp; Oak — The Father\'s Table</strong> &middot; anchorandoak.com.au &middot; ' + story.title + ' &middot; Month ' + story.month + '</span>' +
+    '<span>&copy; ' + year + ' Anchor &amp; Oak &middot; Personal &amp; family use only <em style="color:#b8892a;margin-left:0.5rem;">Church or group use? Email hello@anchorandoak.com.au for licensing.</em></span>' +
+  '</div>';
 }
 
-// Also inject watermark into printed stories
 function printCurrentStory() {
   if (!currentStory) return;
   const storyEl = document.getElementById('modal-story-content');
@@ -4312,7 +4284,7 @@ function registerServiceWorker() {
   if (!('serviceWorker' in navigator)) return;
 
   const swCode = `
-const CACHE = 'fathers-table-v6';
+const CACHE = 'fathers-table-v7';
 const OFFLINE_URL = self.location.href;
 
 self.addEventListener('install', e => {
